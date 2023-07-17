@@ -1,32 +1,53 @@
-# Prerequisites
-*.d
+# This is a white-list gitignore
+#
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
 
-# Precompiled Headers
-*.gch
-*.pch
+# First, ignore everything
+*
+.*
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
 
-# Fortran module files
-*.mod
-*.smod
+# White-list
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
+# gitignore
+!/.gitignore
 
-# Executables
-*.exe
-*.out
-*.app
+# Documents
+!/README.md
+!/LICENSE.md
+!/document/
+!/document/acknowledgement.md
+!/document/CMakeLists.txt
+
+# Project cmake file
+!/CMakeLists.txt
+!/cmake/
+!/cmake/*.cmake
+
+# Source code
+!/source/
+!/source/nanairo/
+!/source/nanairo/CMakeLists.txt
+!/source/nanairo/*.dox
+!/source/nanairo/core/
+!/source/nanairo/core/*.hpp.in
+!/source/nanairo/core/*.hpp
+!/source/nanairo/core/*.cpp
+!/source/nanairo/cmd/
+!/source/nanairo/cmd/*.hpp.in
+!/source/nanairo/cmd/*.hpp
+!/source/nanairo/cmd/*.cpp
+# Nanairo cmake file
+!/source/nanairo/cmake/
+!/source/nanairo/cmake/*.cmake
+# Dependencies
+!/source/dependencies/
+!/source/dependencies/CLI11
+!/source/dependencies/cpu_features
+!/source/dependencies/glTF-SDK
+!/source/dependencies/Zisc
+!/source/dependencies/Zivc
+
+# Build directories
+!/build/
+!/build/.gitkeep

@@ -1,0 +1,12 @@
+[submodule "source/dependencies/Zisc"]
+	path = source/dependencies/Zisc
+	url = https://github.com/byzin/Zisc.git
+[submodule "source/dependencies/CLI11"]
+	path = source/dependencies/CLI11
+	url = https://github.com/CLIUtils/CLI11.git
+[submodule "source/dependencies/Zivc"]
+	path = source/dependencies/Zivc
+	url = https://github.com/byzin/Zivc.git
+[submodule "source/dependencies/cpu_features"]
+	path = source/dependencies/cpu_features
+	url = https://github.com/google/cpu_features.git
