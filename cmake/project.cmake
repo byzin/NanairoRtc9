@@ -66,14 +66,17 @@ function(addCpuFeatures binary_dir)
   Zivc_checkSubmodule("${cpu_features_path}")
   add_subdirectory("${cpu_features_path}" "${binary_dir}" EXCLUDE_FROM_ALL)
   Zivc_checkTarget(CpuFeature::cpu_features)
+  # Set properties
+  set_target_properties(cpu_features PROPERTIES C_STANDARD 17
+                                                C_STANDARD_REQUIRED ON)
   # Supress warnings
-  set(warning_flags "")
+  set(cpu_warning_flags "")
   if(Z_VISUAL_STUDIO)
-    list(APPEND warning_flags /w)
+    list(APPEND cpu_warning_flags /w)
   elseif(Z_CLANG AND NOT Z_APPLE_CLANG)
-    list(APPEND warning_flags -Wno-unused-command-line-argument
-                              -Wno-unused-but-set-variable
-                              )
+    list(APPEND cpu_warning_flags -Wno-unused-command-line-argument
+                                  -Wno-unused-but-set-variable
+                                  )
   endif()
   target_compile_options(cpu_features PRIVATE ${cpu_warning_flags})
 endfunction(addCpuFeatures)
@@ -154,6 +157,8 @@ function(addCli11 binary_dir)
   Zivc_setInternalValue(CLI11_FORCE_LIBCXX OFF)
   Zivc_setInternalValue(CLI11_CUDA_TESTS OFF)
   Zivc_setInternalValue(CLI11_CLANG_TIDY_OPTIONS "")
+  Zivc_setInternalValue(CLI11_PRECOMPILED OFF)
+  Zivc_setInternalValue(CLI11_SANITIZERS OFF)
   cmake_path(SET dependencies_dir NORMALIZE "${project_dir}/source/dependencies")
   cmake_path(SET cli11_source_path "${dependencies_dir}/CLI11")
   Zivc_checkSubmodule("${cli11_source_path}")
@@ -162,6 +167,105 @@ function(addCli11 binary_dir)
 endfunction(addCli11)
 
 
+#
+function(addTinygltf binary_dir)
+  if(TARGET Tinygltf::tinygltf)
+    return()
+  else()
+    message(STATUS "Add tinygltf subdirectory.")
+  endif()
+
+  cmake_path(SET project_dir NORMALIZE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/..")
+  cmake_path(SET zivc_path "${project_dir}/source/dependencies/Zivc/source/zivc")
+  include("${zivc_path}/cmake/general.cmake")
+  # Add tinygltf
+  Zivc_setInternalValue(TINYGLTF_BUILD_LOADER_EXAMPLE OFF)
+  Zivc_setInternalValue(TINYGLTF_BUILD_GL_EXAMPLES OFF)
+  Zivc_setInternalValue(TINYGLTF_BUILD_VALIDATOR_EXAMPLE OFF)
+  Zivc_setInternalValue(TINYGLTF_BUILD_BUILDER_EXAMPLE OFF)
+  Zivc_setInternalValue(TINYGLTF_HEADER_ONLY ON)
+  Zivc_setInternalValue(TINYGLTF_INSTALL OFF)
+  cmake_path(SET dependencies_dir NORMALIZE "${project_dir}/source/dependencies")
+  cmake_path(SET tinygltf_path NORMALIZE "${dependencies_dir}/tinygltf")
+  Zivc_checkSubmodule("${tinygltf_path}")
+  add_subdirectory("${tinygltf_path}" "${binary_dir}" EXCLUDE_FROM_ALL)
+  Zivc_checkTarget(tinygltf)
+  add_library(Tinygltf::tinygltf ALIAS tinygltf)
+  # Set properties 
+  set_target_properties(tinygltf PROPERTIES CXX_STANDARD 20
+                                            CXX_STANDARD_REQUIRED ON)
+  target_compile_definitions(tinygltf INTERFACE TINYGLTF_NO_STB_IMAGE=1
+                                                TINYGLTF_NO_STB_IMAGE_WRITE=1
+                                                TINYGLTF_NO_INCLUDE_STB_IMAGE=1
+                                                TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE=1
+                                                TINYGLTF_USE_CPP14=1)
+endfunction(addTinygltf)
+
+
+#
+function(addZlib binary_dir)
+  if(TARGET Zlib::zlib)
+    return()
+  else()
+    message(STATUS "Add zlib subdirectory.")
+  endif()
+
+  cmake_path(SET project_dir NORMALIZE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/..")
+  cmake_path(SET zivc_path "${project_dir}/source/dependencies/Zivc/source/zivc")
+  include("${zivc_path}/cmake/general.cmake")
+  include("${zivc_path}/cmake/platform.cmake")
+  Zivc_getPlatformFlags(platform_definitions)
+  Zivc_setVariablesOnCMake(${platform_definitions})
+  # Add zlib
+  Zivc_setInternalValue(ASM686 OFF)
+  Zivc_setInternalValue(AMD64 OFF)
+  cmake_path(SET dependencies_dir NORMALIZE "${project_dir}/source/dependencies")
+  cmake_path(SET zlib_path NORMALIZE "${dependencies_dir}/zlib")
+  Zivc_checkSubmodule("${zlib_path}")
+  add_subdirectory("${zlib_path}" "${binary_dir}" EXCLUDE_FROM_ALL)
+  Zivc_checkTarget(zlibstatic)
+  add_library(Zlib::zlib ALIAS zlibstatic)
+  # Set properties
+  set_target_properties(zlibstatic PROPERTIES C_STANDARD 17
+                                              C_STANDARD_REQUIRED ON)
+  target_include_directories(zlibstatic INTERFACE ${zlib_path} ${binary_dir})
+  # Supress warnings
+  set(zlib_warning_flags "")
+  if(Z_VISUAL_STUDIO)
+    list(APPEND zlib_warning_flags /w)
+  elseif(Z_CLANG AND NOT Z_APPLE_CLANG)
+    list(APPEND zlib_warning_flags -Wno-deprecated-non-prototype
+                                   )
+  endif()
+  target_compile_options(zlibstatic PRIVATE ${zlib_warning_flags})
+endfunction(addZlib)
+
+
+# Build spng
+function(addSpng binary_dir)
+  if(TARGET Spng::spng)
+    return()
+  else()
+    message(STATUS "Add spng subdirectory.")
+  endif()
+
+  cmake_path(SET project_dir NORMALIZE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/..")
+  cmake_path(SET zivc_path "${project_dir}/source/dependencies/Zivc/source/zivc")
+  include("${zivc_path}/cmake/general.cmake")
+  # Add spng
+  cmake_path(SET dependencies_dir NORMALIZE "${project_dir}/source/dependencies")
+  cmake_path(SET spng_source_path "${dependencies_dir}/libspng_cmake")
+  Zivc_checkSubmodule("${spng_source_path}")
+  add_subdirectory("${spng_source_path}" "${binary_dir}" EXCLUDE_FROM_ALL)
+  Zivc_checkTarget(spng)
+  add_library(Spng::spng ALIAS spng)
+  # Set properties
+  set_target_properties(spng PROPERTIES C_STANDARD 17
+                                        C_STANDARD_REQUIRED ON)
+endfunction(addSpng)
+
+
+#
 function(findVulkan)
   Zivc_setInternalValue(ZIVC_ENABLE_VULKAN_BACKEND ${Z_ENABLE_VULKAN_BACKEND})
   if(NOT Z_ENABLE_VULKAN_BACKEND)
@@ -231,25 +335,25 @@ endfunction(setZivcAlias)
 
 
 # GoogleTest
-function(addGoogleTest binary_dir)
-  if(TARGET GTest::gtest)
-    return()
-  else()
-    message(STATUS "Add GoogleTest subdirectory.")
-  endif()
-
-
-  # Add googletest
-  cmake_path(SET project_dir NORMALIZE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/..")
-  cmake_path(SET zivc_path "${project_dir}/source/zivc")
-  cmake_path(SET dependencies_dir "${project_dir}/test/dependencies")
-  cmake_path(SET googletest_path "${dependencies_dir}/googletest")
-  include("${zivc_path}/cmake/general.cmake")
-  Zivc_checkSubmodule(${googletest_path})
-  Zivc_addGoogleTest(${googletest_path} ${binary_dir})
-  Zivc_checkTarget(gtest)
-  #
-  include("${zivc_path}/cmake/compiler.cmake")
-  Zivc_populateTargetOptions(Zisc::Zisc gtest)
-  Zivc_checkTarget(GTest::gtest)
-endfunction(addGoogleTest)
+#function(addGoogleTest binary_dir)
+#  if(TARGET GTest::gtest)
+#    return()
+#  else()
+#    message(STATUS "Add GoogleTest subdirectory.")
+#  endif()
+#
+#
+#  # Add googletest
+#  cmake_path(SET project_dir NORMALIZE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/..")
+#  cmake_path(SET zivc_path "${project_dir}/source/zivc")
+#  cmake_path(SET dependencies_dir "${project_dir}/test/dependencies")
+#  cmake_path(SET googletest_path "${dependencies_dir}/googletest")
+#  include("${zivc_path}/cmake/general.cmake")
+#  Zivc_checkSubmodule(${googletest_path})
+#  Zivc_addGoogleTest(${googletest_path} ${binary_dir})
+#  Zivc_checkTarget(gtest)
+#  #
+#  include("${zivc_path}/cmake/compiler.cmake")
+#  Zivc_populateTargetOptions(Zisc::Zisc gtest)
+#  Zivc_checkTarget(GTest::gtest)
+#endfunction(addGoogleTest)

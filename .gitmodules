@@ -10,3 +10,12 @@
 [submodule "source/dependencies/cpu_features"]
 	path = source/dependencies/cpu_features
 	url = https://github.com/google/cpu_features.git
+[submodule "source/dependencies/tinygltf"]
+	path = source/dependencies/tinygltf
+	url = https://github.com/syoyo/tinygltf
+[submodule "source/dependencies/libspng"]
+	path = source/dependencies/libspng
+	url = https://github.com/randy408/libspng.git
+[submodule "source/dependencies/zlib"]
+	path = source/dependencies/zlib
+	url = https://github.com/madler/zlib

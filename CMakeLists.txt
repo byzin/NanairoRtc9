@@ -39,6 +39,9 @@ if(PROJECT_IS_TOP_LEVEL)
   setZiscAlias()
   addCpuFeatures("${PROJECT_BINARY_DIR}/CpuFeatures")
   addCli11("${PROJECT_BINARY_DIR}/CLI11")
+  addTinygltf("${PROJECT_BINARY_DIR}/Tinygltf")
+  addZlib("${PROJECT_BINARY_DIR}/Zlib")
+  addSpng("${PROJECT_BINARY_DIR}/Spng")
   findVulkan()
   addZivc("${PROJECT_BINARY_DIR}/Zivc")
   setZivcAlias()
@@ -59,12 +62,12 @@ add_subdirectory("${nanairo_path}" "${PROJECT_BINARY_DIR}/Nanairo")
 #  enable_testing()
 #  add_subdirectory("${PROJECT_SOURCE_DIR}/test" "${PROJECT_BINARY_DIR}/UnitTest")
 #endif()
-#
-#if(PROJECT_IS_TOP_LEVEL)
-#  # Build documents
-#  add_subdirectory("${PROJECT_SOURCE_DIR}/document" "${PROJECT_BINARY_DIR}/Document")
-#
-#  # Packaging
-#  include("${PROJECT_SOURCE_DIR}/cmake/packaging.cmake")
-#  packageProject()
-#endif()
+
+if(PROJECT_IS_TOP_LEVEL)
+  # Build documents
+  # add_subdirectory("${PROJECT_SOURCE_DIR}/document" "${PROJECT_BINARY_DIR}/Document")
+
+  # Packaging
+  include("${PROJECT_SOURCE_DIR}/cmake/packaging.cmake")
+  packageProject()
+endif()

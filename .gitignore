@@ -44,9 +44,12 @@
 !/source/dependencies/
 !/source/dependencies/CLI11
 !/source/dependencies/cpu_features
-!/source/dependencies/glTF-SDK
+!/source/dependencies/libspng
+!/source/dependencies/libspng_cmake
+!/source/dependencies/tinygltf
 !/source/dependencies/Zisc
 !/source/dependencies/Zivc
+!/source/dependencies/zlib
 
 # Build directories
 !/build/

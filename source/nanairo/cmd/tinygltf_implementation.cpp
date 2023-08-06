@@ -1,10 +1,13 @@
 /*!
-  \file main.cpp
+  \file tinygltf_implementation.cpp
   \author Sho Ikeda
   \brief No brief description
 
   \details
   No detailed description.
+
+  \note No notation.
+  \attention No attention.
 
   \copyright
   Copyright (c) 2015-2023 Sho Ikeda
@@ -12,7 +15,6 @@
   http://opensource.org/licenses/mit-license.php
   */
 
-int main(const int argc, const char* const* const argv)
-{
-  return 0;
-}
+// Tinygltf
+#define TINYGLTF_IMPLEMENTATION 1
+#include "tiny_gltf.h"
