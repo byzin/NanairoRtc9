@@ -30,9 +30,9 @@ macro(Nanairo_setSpngProject)
   source_group(${PROJECT_NAME} FILES ${spng_source_files})
   add_library(${PROJECT_NAME} STATIC ${spng_source_files})
   #
-  target_compile_definitions(${PROJECT_NAME} PRIVATE SPNG_STATIC=1
-                                                     SPNG_DISABLE_OPT=1)
-  target_link_libraries(${PROJECT_NAME} PRIVATE Zlib::zlib
+  target_compile_definitions(${PROJECT_NAME} PUBLIC SPNG_STATIC=1
+                                                    SPNG_DISABLE_OPT=1)
+  target_link_libraries(${PROJECT_NAME} PUBLIC Zlib::zlib
                                         ${math_library})
   target_include_directories(${PROJECT_NAME} INTERFACE ${spng_dir})
 endmacro(Nanairo_setSpngProject)

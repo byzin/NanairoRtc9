@@ -19,7 +19,6 @@
 #include <cstddef>
 #include <memory>
 #include <ostream>
-#include <source_location>
 // Zisc
 #include "zisc/memory/std_memory_resource.hpp"
 
@@ -61,8 +60,7 @@ class PngWriter
 
  private:
   //! Check if the result has any error
-  static void checkError(const int no,
-                         const std::source_location location = std::source_location::current()) noexcept;
+  static void checkError(const int no) noexcept;
 
 
   spng_ctx* context_ = nullptr;

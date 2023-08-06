@@ -130,14 +130,10 @@ void PngWriter::write(const LdrImage& image, std::ostream* output) const noexcep
 
   \param [in] no No description.
   */
-void PngWriter::checkError(const int no, const std::source_location location) noexcept
+void PngWriter::checkError(const int no) noexcept
 {
   if (no != SPNG_OK) {
-    std::cerr << "  PngWriter error: " << location.file_name() << "("
-                                       << location.line() << ":"
-                                       << location.column() << ") `"
-                                       << location.function_name() << "`: "
-                                       << spng_strerror(no) << std::endl;
+    std::cerr << "  PngWriter error: " << spng_strerror(no) << std::endl;
   }
 }
 

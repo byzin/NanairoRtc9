@@ -46,6 +46,7 @@
 !/source/dependencies/cpu_features
 !/source/dependencies/libspng
 !/source/dependencies/libspng_cmake
+!/source/dependencies/libspng_cmake/CMakeLists.txt
 !/source/dependencies/tinygltf
 !/source/dependencies/Zisc
 !/source/dependencies/Zivc
