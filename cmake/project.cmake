@@ -82,57 +82,6 @@ function(addCpuFeatures binary_dir)
 endfunction(addCpuFeatures)
 
 
-# Build Zstd
-#function(addZstd binary_dir)
-#  if(TARGET Zstd::Zstd)
-#    return()
-#  else()
-#    message(STATUS "Add Zstd subdirectory.")
-#  endif()
-#
-#  cmake_path(SET project_dir NORMALIZE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/..")
-#  cmake_path(SET zivc_path "${project_dir}/source/zivc")
-#  include("${zivc_path}/cmake/general.cmake")
-#  Zivc_getPlatformFlags(platform_definitions)
-#  Zivc_setVariablesOnCMake(${platform_definitions})
-#  # Add Zstd
-#  Zivc_setInternalValue(ZSTD_BUILD_STATIC ON)
-#  Zivc_setInternalValue(ZSTD_BUILD_SHARED OFF)
-#  Zivc_setInternalValue(ZSTD_LEGACY_SUPPORT OFF)
-#  Zivc_setInternalValue(ZSTD_MULTITHREAD_SUPPORT OFF)
-#  Zivc_setInternalValue(ZSTD_BUILD_PROGRAMS OFF)
-#  Zivc_setInternalValue(ZSTD_BUILD_CONTRIB OFF)
-#  Zivc_setInternalValue(ZSTD_BUILD_TESTS OFF)
-#  Zivc_setInternalValue(ZSTD_USE_STATIC_RUNTIME OFF)
-#  Zivc_setInternalValue(ZSTD_PROGRAMS_LINK_SHARED OFF)
-#  cmake_path(SET zstd_source_path NORMALIZE "${zivc_path}/../dependencies/zstd")
-#  Zivc_checkSubmodule("${zstd_source_path}")
-#  add_subdirectory("${zstd_source_path}/build/cmake" "${binary_dir}" EXCLUDE_FROM_ALL)
-#  Zivc_checkTarget(libzstd_static)
-#  add_library(Zstd::Zstd ALIAS libzstd_static)
-#  Zivc_checkTarget(Zstd::Zstd)
-#  # Properties
-#  set_target_properties(libzstd_static PROPERTIES CXX_STANDARD 20
-#                                                  CXX_STANDARD_REQUIRED ON)
-#  # Supress warnings
-#  set(zstd_warning_flags "")
-#  if(Z_VISUAL_STUDIO)
-#    list(APPEND zstd_warning_flags /w)
-#  elseif(Z_CLANG AND NOT Z_APPLE_CLANG)
-#    list(APPEND zstd_warning_flags -Wno-unused-command-line-argument
-#                                   -Wno-unused-but-set-variable
-#                                   )
-#  endif()
-#  target_compile_options(libzstd_static PRIVATE ${zstd_warning_flags})
-#  # Headers
-#  cmake_path(SET zstd_dest_inc_dir "${binary_dir}/include")
-#  file(MAKE_DIRECTORY "${zstd_dest_inc_dir}")
-#  file(COPY "${zstd_source_path}/lib/zstd.h" "${zstd_source_path}/lib/zstd_errors.h"
-#       DESTINATION "${zstd_dest_inc_dir}")
-#  target_include_directories(libzstd_static SYSTEM INTERFACE $<BUILD_INTERFACE:${zstd_dest_inc_dir}>)
-#endfunction(addZstd)
-
-
 # Build CLI11
 function(addCli11 binary_dir)
   if(TARGET CLI11::CLI11)
@@ -194,11 +143,12 @@ function(addTinygltf binary_dir)
   # Set properties 
   set_target_properties(tinygltf PROPERTIES CXX_STANDARD 20
                                             CXX_STANDARD_REQUIRED ON)
-  target_compile_definitions(tinygltf INTERFACE TINYGLTF_NO_STB_IMAGE=1
-                                                TINYGLTF_NO_STB_IMAGE_WRITE=1
-                                                TINYGLTF_NO_INCLUDE_STB_IMAGE=1
+  target_compile_definitions(tinygltf INTERFACE TINYGLTF_NO_STB_IMAGE_WRITE=1
                                                 TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE=1
-                                                TINYGLTF_USE_CPP14=1)
+                                                TINYGLTF_USE_CPP14=1
+                                                STBI_NO_SIMD=1
+                                                STBI_NO_PSD=1
+                                                STBI_NO_GIF=1)
 endfunction(addTinygltf)
 
 

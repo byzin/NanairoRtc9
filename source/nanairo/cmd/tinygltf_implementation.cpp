@@ -17,4 +17,5 @@
 
 // Tinygltf
 #define TINYGLTF_IMPLEMENTATION 1
+#define STB_IMAGE_IMPLEMENTATION 1
 #include "tiny_gltf.h"

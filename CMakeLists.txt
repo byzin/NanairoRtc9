@@ -51,23 +51,33 @@ endif()
 cmake_path(SET nanairo_path "${PROJECT_SOURCE_DIR}/source/nanairo")
 add_subdirectory("${nanairo_path}" "${PROJECT_BINARY_DIR}/Nanairo")
 
-## Build examples
-#if(ZIVC_BUILD_EXAMPLES)
-#  add_subdirectory("${PROJECT_SOURCE_DIR}/example" "${PROJECT_BINARY_DIR}/Examples")
-#endif()
-#
-## Build unit test
-#if(ZIVC_BUILD_TESTS)
-#  addGoogleTest("${PROJECT_BINARY_DIR}/GoogleTest")
-#  enable_testing()
-#  add_subdirectory("${PROJECT_SOURCE_DIR}/test" "${PROJECT_BINARY_DIR}/UnitTest")
-#endif()
-
 if(PROJECT_IS_TOP_LEVEL)
-  # Build documents
-  # add_subdirectory("${PROJECT_SOURCE_DIR}/document" "${PROJECT_BINARY_DIR}/Document")
-
   # Packaging
   include("${PROJECT_SOURCE_DIR}/cmake/packaging.cmake")
   packageProject()
+endif()
+
+# Resources and tests
+if(PROJECT_IS_TOP_LEVEL)
+  cmake_path(SET source_scene_dir NORMALIZE "${PROJECT_SOURCE_DIR}/resource/scene")
+  cmake_path(SET dest_scene_dir NORMALIZE "${PROJECT_BINARY_DIR}/resource/scene")
+  file(MAKE_DIRECTORY ${dest_scene_dir})
+
+  cmake_path(SET source_scene_path NORMALIZE "${source_scene_dir}/scene.glb.zip")
+  cmake_path(SET dest_scene_path NORMALIZE "${dest_scene_dir}/scene.glb")
+  add_custom_command(OUTPUT "${dest_scene_path}"
+    COMMAND ${CMAKE_COMMAND} -E tar xfz ${source_scene_path}
+    WORKING_DIRECTORY ${dest_scene_dir}
+    DEPENDS ${source_scene_path}
+    COMMENT "Unzip scene file '${source_scene_path}'")
+  add_custom_target(Resources ALL
+    DEPENDS ${dest_scene_path}
+    COMMENT "Preparing resource files")
+
+  # Test
+  cmake_path(SET test_dir NORMALIZE "${PROJECT_BINARY_DIR}/test")
+  file(MAKE_DIRECTORY ${test_dir})
+  enable_testing()
+  add_test(NAME Nanairo COMMAND Nanairo ${dest_scene_path}
+                        WORKING_DIRECTORY ${test_dir})
 endif()

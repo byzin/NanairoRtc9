@@ -16,7 +16,10 @@
 #include <array>
 #include <cstdlib>
 #include <fstream>
+#include <iostream>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <utility>
 // CLI11
 #include "CLI/CLI.hpp"
@@ -26,6 +29,7 @@
 #include "zivc/zivc.hpp"
 // Nanairo Cmd
 #include "cli.hpp"
+#include "gltf_scene.hpp"
 #include "ldr_image.hpp"
 #include "png_writer.hpp"
 
@@ -35,6 +39,16 @@ zivc::uint8b to8bitColor(const double v) noexcept
   constexpr double maxv = 255.0;
   const double p = std::clamp(256.0 * v, minv, maxv);
   return static_cast<zivc::uint8b>(p);
+}
+
+void loadGltfScene(const std::string_view gltf_scene_path, cmd::GltfScene* scene) noexcept
+{
+  std::ifstream data{gltf_scene_path.data(), std::ios_base::binary};
+  if (!data.is_open()) {
+    std::cerr << "  Loading gltf scene '" << gltf_scene_path << "' failed." << std::endl;
+  }
+
+  scene->load(data);
 }
 
 void render([[maybe_unused]] const cmd::CliOptions& options, cmd::LdrImage* output) noexcept
@@ -78,12 +92,16 @@ int main(const int argc, const char* const* const argv)
   const std::unique_ptr mem_resource = std::make_unique<zisc::AllocFreeResource>();
 
   {
+    //
+    const std::unique_ptr gltf_scene = std::make_unique<cmd::GltfScene>(mem_resource.get());
+    loadGltfScene(options.gltf_scene_path_, gltf_scene.get());
+
     // Create an LDR image for output
-    std::unique_ptr ldr_image = std::make_unique<cmd::LdrImage>(mem_resource.get());
+    const std::unique_ptr ldr_image = std::make_unique<cmd::LdrImage>(mem_resource.get());
     ldr_image->initialize(options.image_width_, options.image_height_);
 
     //
-    std::unique_ptr png_writer = std::make_unique<cmd::PngWriter>(mem_resource.get());
+    const std::unique_ptr png_writer = std::make_unique<cmd::PngWriter>(mem_resource.get());
 
     for (std::size_t frame = options.min_frame_; frame < options.max_frame_; ++frame) {
       render(options, ldr_image.get());

@@ -50,6 +50,10 @@
 !/source/dependencies/Zisc
 !/source/dependencies/Zivc
 !/source/dependencies/zlib
+# Resources
+!/resource/
+!/resource/scene/
+!/resource/scene/*.glb.zip
 
 # Build directories
 !/build/
