@@ -33,7 +33,8 @@ std::unique_ptr<CLI::App> createCommandLineParser(CliOptions* options) noexcept
   using namespace std::literals;
 
   constexpr std::string_view app_desc = "The path tracing renderer for RTC9."sv;
-  std::unique_ptr parser = std::make_unique<CLI::App>(app_desc.cbegin(), app_desc.cend());
+  constexpr std::string_view app_name = "Nanairo"sv;
+  std::unique_ptr parser = std::make_unique<CLI::App>(app_desc.data(), app_name.data());
 
   {
     constexpr std::string_view desc = "Specify the file path to the gltf scene"sv;
