@@ -24,7 +24,7 @@
 // Zisc
 #include "zisc/memory/std_memory_resource.hpp"
 
-namespace cmd {
+namespace nanairo {
 
 /*!
   \brief No brief description
@@ -50,6 +50,6 @@ class GltfScene
  private:
 };
 
-} /* namespace cmd */
+} /* namespace nanairo */
 
 #endif /* NANAIRO_CMD_GLTF_SCENE_HPP */

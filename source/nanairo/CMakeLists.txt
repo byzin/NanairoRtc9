@@ -95,6 +95,19 @@ macro(Nanairo_setNanairoProject)
                                                     "${PROJECT_BINARY_DIR}/include")
   Zivc_enableIpo(${PROJECT_NAME})
 
+  # Add kernel sets
+  include("${zivc_path}/cmake/kernel.cmake")
+  cmake_path(SET kernel_dir NORMALIZE "${PROJECT_SOURCE_DIR}/kernel")
+  cmake_path(SET common_header_dir NORMALIZE "${kernel_dir}/include")
+  ## Primary sample space kernel
+  cmake_path(SET kernel_set_dir NORMALIZE "${kernel_dir}/primary_sample_space_kernel")
+  file(GLOB_RECURSE kernel_sources ${kernel_set_dir}/*.cl)
+  Zivc_addKernelSet(primary_sample_space_kernel ${PROJECT_VERSION} kernel_name
+      SOURCE_FILES ${kernel_sources}
+      INCLUDE_DIRS ${common_header_dir})
+  target_link_libraries(${PROJECT_NAME} PRIVATE ${kernel_name})
+
+
   #
   set(clang_tidy_exclusion_checks bugprone-exception-escape
                                   misc-misplaced-const

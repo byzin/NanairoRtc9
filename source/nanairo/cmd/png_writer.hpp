@@ -25,7 +25,7 @@
 // Forward declaration
 typedef struct spng_ctx spng_ctx;
 
-namespace cmd {
+namespace nanairo {
 
 // Forward declaration
 class LdrImage;
@@ -66,6 +66,6 @@ class PngWriter
   spng_ctx* context_ = nullptr;
 };
 
-} /* namespace cmd */
+} /* namespace nanairo */
 
 #endif /* NANAIRO_CMD_PNG_WRITER_HPP */

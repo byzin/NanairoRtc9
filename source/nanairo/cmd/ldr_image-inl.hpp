@@ -21,7 +21,7 @@
 // Zivc
 #include "zivc/zivc.hpp"
 
-namespace cmd {
+namespace nanairo {
 
 /*!
   \details No detailed description
@@ -130,6 +130,6 @@ std::size_t LdrImage::width() const noexcept
   return width_;
 }
 
-} /* namespace cmd */
+} /* namespace nanairo */
 
 #endif /* NANAIRO_CMD_LDR_IMAGE_INL_HPP */

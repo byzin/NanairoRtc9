@@ -24,7 +24,7 @@
 // Zivc
 #include "zivc/zivc.hpp"
 
-namespace cmd {
+namespace nanairo {
 
 /*!
   \details No detailed description
@@ -67,4 +67,4 @@ void LdrImage::initialize(const std::size_t width, const std::size_t height) noe
   data_.resize(width * height);
 }
 
-} /* namespace cmd */
+} /* namespace nanairo */

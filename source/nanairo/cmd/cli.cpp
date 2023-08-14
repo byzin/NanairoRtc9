@@ -17,10 +17,8 @@
 #include <memory>
 #include <string>
 #include <string_view>
-// CLI11
-#include "CLI/CLI.hpp"
 
-namespace cmd {
+namespace nanairo {
 
 /*!
   \details No detailed description
@@ -57,8 +55,16 @@ std::unique_ptr<CLI::App> createCommandLineParser(CliOptions* options) noexcept
     constexpr std::string_view desc = "Specify the max frame of the animation render."sv;
     [[maybe_unused]] CLI::Option* option = parser->add_option("--max-frame", options->max_frame_, desc.data());
   }
+  {
+    constexpr std::string_view desc = "Enable debug mode."sv;
+    [[maybe_unused]] CLI::Option* option = parser->add_flag("--debug", options->is_debug_mode_, desc.data());
+  }
+  {
+    constexpr std::string_view desc = "Force using cpu as the kernel device."sv;
+    [[maybe_unused]] CLI::Option* option = parser->add_flag("--force-cpu", options->is_cpu_forced_, desc.data());
+  }
 
   return parser;
 }
 
-} /* namespace cmd */
+} /* namespace nanairo */

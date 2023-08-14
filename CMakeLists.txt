@@ -78,6 +78,24 @@ if(PROJECT_IS_TOP_LEVEL)
   cmake_path(SET test_dir NORMALIZE "${PROJECT_BINARY_DIR}/test")
   file(MAKE_DIRECTORY ${test_dir})
   enable_testing()
-  add_test(NAME Nanairo COMMAND Nanairo ${dest_scene_path}
-                        WORKING_DIRECTORY ${test_dir})
+  add_test(NAME Nanairo-single-vulkan
+               COMMAND Nanairo ${dest_scene_path} --min-frame=0 --max-frame=1 --debug
+               WORKING_DIRECTORY ${test_dir})
+  add_test(NAME Nanairo-single-cpu
+               COMMAND Nanairo ${dest_scene_path} --min-frame=0 --max-frame=1 --debug --force-cpu
+               WORKING_DIRECTORY ${test_dir})
+  add_test(NAME Nanairo-animation-vulkan
+               COMMAND Nanairo ${dest_scene_path} --debug
+               WORKING_DIRECTORY ${test_dir})
+  add_test(NAME Nanairo-animation-cpu
+               COMMAND Nanairo ${dest_scene_path} --debug --force-cpu
+               WORKING_DIRECTORY ${test_dir})
+  ## Test properties
+  set(test_env_list "")
+  list(APPEND test_env_list ZIVC_SUPPRESS_TRIVIAL_WARNINGS=1)
+  set_tests_properties(Nanairo-single-vulkan
+                       Nanairo-single-cpu
+                       Nanairo-animation-vulkan
+                       Nanairo-animation-cpu
+                       PROPERTIES ENVIRONMENT "${test_env_list}")
 endif()

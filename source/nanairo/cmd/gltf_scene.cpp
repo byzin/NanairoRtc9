@@ -26,7 +26,7 @@
 #include "zisc/zisc_config.hpp"
 #include "zisc/memory/std_memory_resource.hpp"
 
-namespace cmd {
+namespace nanairo {
 
 /*!
   \details No detailed description
@@ -90,4 +90,4 @@ void GltfScene::load(std::istream& data) noexcept
   }
 }
 
-} /* namespace cmd */
+} /* namespace nanairo */

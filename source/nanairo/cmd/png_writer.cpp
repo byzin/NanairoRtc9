@@ -25,7 +25,7 @@
 // Nanairo
 #include "ldr_image.hpp"
 
-namespace cmd {
+namespace nanairo {
 
 /*!
   \details No detailed description
@@ -137,4 +137,4 @@ void PngWriter::checkError(const int no) noexcept
   }
 }
 
-} /* namespace cmd */
+} /* namespace nanairo */

@@ -32,6 +32,7 @@
 #include "gltf_scene.hpp"
 #include "ldr_image.hpp"
 #include "png_writer.hpp"
+#include "renderer.hpp"
 
 zivc::uint8b to8bitColor(const double v) noexcept
 {
@@ -41,7 +42,7 @@ zivc::uint8b to8bitColor(const double v) noexcept
   return static_cast<zivc::uint8b>(p);
 }
 
-void loadGltfScene(const std::string_view gltf_scene_path, cmd::GltfScene* scene) noexcept
+void loadGltfScene(const std::string_view gltf_scene_path, nanairo::GltfScene* scene) noexcept
 {
   std::ifstream data{gltf_scene_path.data(), std::ios_base::binary};
   if (!data.is_open()) {
@@ -51,26 +52,26 @@ void loadGltfScene(const std::string_view gltf_scene_path, cmd::GltfScene* scene
   scene->load(data);
 }
 
-void render([[maybe_unused]] const cmd::CliOptions& options, cmd::LdrImage* output) noexcept
-{
-  using zivc::uint8b;
-  const auto max_w = static_cast<double>(output->width());
-  const auto max_h = static_cast<double>(output->height());
-  for (std::size_t h = 0; h < output->height(); ++h) {
-    const uint8b green = to8bitColor(static_cast<double>(h) / max_h);
-    for (std::size_t w = 0; w < output->width(); ++w) {
-      constexpr uint8b max_value = 255;
-      const uint8b red = to8bitColor(static_cast<double>(w) / max_w);
-      zivc::cl::uchar4& p = (*output)[w + h * output->width()];
-      p.x = red;
-      p.y = green;
-      p.z = 0;
-      p.w = max_value;
-    }
-  }
-}
+//void render([[maybe_unused]] const nanairo::CliOptions& options, nanairo::LdrImage* output) noexcept
+//{
+//  using zivc::uint8b;
+//  const auto max_w = static_cast<double>(output->width());
+//  const auto max_h = static_cast<double>(output->height());
+//  for (std::size_t h = 0; h < output->height(); ++h) {
+//    const uint8b green = to8bitColor(static_cast<double>(h) / max_h);
+//    for (std::size_t w = 0; w < output->width(); ++w) {
+//      constexpr uint8b max_value = 255;
+//      const uint8b red = to8bitColor(static_cast<double>(w) / max_w);
+//      zivc::cl::uchar4& p = (*output)[w + h * output->width()];
+//      p.x = red;
+//      p.y = green;
+//      p.z = 0;
+//      p.w = max_value;
+//    }
+//  }
+//}
 
-void saveImage(const std::size_t frame, const cmd::LdrImage& image, const cmd::PngWriter& writer)
+void saveImage(const std::size_t frame, const nanairo::LdrImage& image, const nanairo::PngWriter& writer)
 {
   constexpr std::size_t max_length = 256;
   std::array<char, max_length> file_name{};
@@ -82,9 +83,9 @@ void saveImage(const std::size_t frame, const cmd::LdrImage& image, const cmd::P
 int main(const int argc, const char* const* const argv)
 {
   // Process command line arguments
-  cmd::CliOptions options{};
+  nanairo::CliOptions options{};
   {
-    std::unique_ptr cli_parser = cmd::createCommandLineParser(&options);
+    std::unique_ptr cli_parser = nanairo::createCommandLineParser(&options);
     CLI11_PARSE(*cli_parser, argc, argv);
   }
 
@@ -93,18 +94,22 @@ int main(const int argc, const char* const* const argv)
 
   {
     //
-    const std::unique_ptr gltf_scene = std::make_unique<cmd::GltfScene>(mem_resource.get());
+    const std::unique_ptr gltf_scene = std::make_unique<nanairo::GltfScene>(mem_resource.get());
     loadGltfScene(options.gltf_scene_path_, gltf_scene.get());
 
+    //
+    const std::unique_ptr renderer = std::make_unique<nanairo::Renderer>(mem_resource.get());
+    renderer->initialize(options, *gltf_scene);
+
     // Create an LDR image for output
-    const std::unique_ptr ldr_image = std::make_unique<cmd::LdrImage>(mem_resource.get());
+    const std::unique_ptr ldr_image = std::make_unique<nanairo::LdrImage>(mem_resource.get());
     ldr_image->initialize(options.image_width_, options.image_height_);
 
     //
-    const std::unique_ptr png_writer = std::make_unique<cmd::PngWriter>(mem_resource.get());
+    const std::unique_ptr png_writer = std::make_unique<nanairo::PngWriter>(mem_resource.get());
 
     for (std::size_t frame = options.min_frame_; frame < options.max_frame_; ++frame) {
-      render(options, ldr_image.get());
+      renderer->renderFrame(frame, ldr_image.get());
       png_writer->initialize();
       saveImage(frame, *ldr_image, *png_writer);
     }

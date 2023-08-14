@@ -37,6 +37,12 @@
 !/source/nanairo/cmd/*.hpp.in
 !/source/nanairo/cmd/*.hpp
 !/source/nanairo/cmd/*.cpp
+!/source/nanairo/kernel/
+!/source/nanairo/kernel/include/
+!/source/nanairo/kernel/include/cl/
+!/source/nanairo/kernel/include/cl/*.cl
+!/source/nanairo/kernel/primary_sample_space_kernel/
+!/source/nanairo/kernel/primary_sample_space_kernel/*.cl
 # Nanairo cmake file
 !/source/nanairo/cmake/
 !/source/nanairo/cmake/*.cmake

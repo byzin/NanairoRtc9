@@ -25,7 +25,7 @@
 // Zivc
 #include "zivc/zivc.hpp"
 
-namespace cmd {
+namespace nanairo {
 
 /*!
   \brief No brief description
@@ -82,7 +82,7 @@ class LdrImage
   std::size_t height_;
 };
 
-} /* namespace cmd */
+} /* namespace nanairo */
 
 #include "ldr_image-inl.hpp"
 
