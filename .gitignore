@@ -40,9 +40,13 @@
 !/source/nanairo/kernel/
 !/source/nanairo/kernel/include/
 !/source/nanairo/kernel/include/cl/
-!/source/nanairo/kernel/include/cl/*.cl
+!/source/nanairo/kernel/include/cl/*.hpp
 !/source/nanairo/kernel/primary_sample_space_kernel/
 !/source/nanairo/kernel/primary_sample_space_kernel/*.cl
+!/source/nanairo/kernel/test_kernel/
+!/source/nanairo/kernel/test_kernel/*.cl
+!/source/nanairo/kernel/tone_mapping_kernel/
+!/source/nanairo/kernel/tone_mapping_kernel/*.cl
 # Nanairo cmake file
 !/source/nanairo/cmake/
 !/source/nanairo/cmake/*.cmake
@@ -51,7 +55,7 @@
 !/source/dependencies/CLI11
 !/source/dependencies/cpu_features
 !/source/dependencies/libspng
-!/source/dependencies/libspng_cmake
+!/source/dependencies/libspng_cmake/
 !/source/dependencies/libspng_cmake/CMakeLists.txt
 !/source/dependencies/tinygltf
 !/source/dependencies/Zisc

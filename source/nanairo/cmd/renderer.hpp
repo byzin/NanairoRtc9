@@ -43,18 +43,28 @@ class Renderer
   ~Renderer() noexcept;
 
 
+  //!
+  void clearFrame();
+
   //! Destroy the renderer
   void destroy() noexcept;
+
+  //!
+  void getFrame(LdrImage* output) const;
 
   //! Initialize the renderer
   void initialize(const CliOptions& options, const GltfScene& scene);
 
   //! Render a frame
-  void renderFrame(const std::size_t frame, LdrImage* output) noexcept;
+  void renderFrame(const std::size_t frame, const std::size_t iteration);
 
  private:
   //! The kernel data for the renderer
   struct Data;
+
+
+  //! Print device info for debug
+  void printDeviceInfo() const noexcept;
 
 
   zisc::pmr::memory_resource* mem_resource_ = nullptr;

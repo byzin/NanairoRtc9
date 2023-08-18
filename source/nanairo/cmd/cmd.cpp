@@ -52,25 +52,6 @@ void loadGltfScene(const std::string_view gltf_scene_path, nanairo::GltfScene* s
   scene->load(data);
 }
 
-//void render([[maybe_unused]] const nanairo::CliOptions& options, nanairo::LdrImage* output) noexcept
-//{
-//  using zivc::uint8b;
-//  const auto max_w = static_cast<double>(output->width());
-//  const auto max_h = static_cast<double>(output->height());
-//  for (std::size_t h = 0; h < output->height(); ++h) {
-//    const uint8b green = to8bitColor(static_cast<double>(h) / max_h);
-//    for (std::size_t w = 0; w < output->width(); ++w) {
-//      constexpr uint8b max_value = 255;
-//      const uint8b red = to8bitColor(static_cast<double>(w) / max_w);
-//      zivc::cl::uchar4& p = (*output)[w + h * output->width()];
-//      p.x = red;
-//      p.y = green;
-//      p.z = 0;
-//      p.w = max_value;
-//    }
-//  }
-//}
-
 void saveImage(const std::size_t frame, const nanairo::LdrImage& image, const nanairo::PngWriter& writer)
 {
   constexpr std::size_t max_length = 256;
@@ -109,7 +90,9 @@ int main(const int argc, const char* const* const argv)
     const std::unique_ptr png_writer = std::make_unique<nanairo::PngWriter>(mem_resource.get());
 
     for (std::size_t frame = options.min_frame_; frame < options.max_frame_; ++frame) {
-      renderer->renderFrame(frame, ldr_image.get());
+      renderer->clearFrame();
+      renderer->renderFrame(frame, 0);
+      renderer->getFrame(ldr_image.get());
       png_writer->initialize();
       saveImage(frame, *ldr_image, *png_writer);
     }
