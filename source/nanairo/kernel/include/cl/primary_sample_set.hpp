@@ -62,9 +62,6 @@ class PrimarySampleSet
   //! Set a sample
   void set(const float sample, const size_t index) noexcept;
 
-  //!
-  static size_t getSetOffset(const size_t max_bounces) noexcept;
-
  private:
   //! Decode the sample from the underlying data
   float decode(const size_t index) const noexcept;
@@ -72,25 +69,49 @@ class PrimarySampleSet
   //! Encode a sample into the underlying data
   void encode(const float sample, const size_t index) noexcept;
 
+  //! Return the underlying data
+  uint3 getData() const noexcept;
+
   //!
   static uint3 getMask(const size_t i) noexcept;
 
   //!
   uint32b getValue(const size_t index) const noexcept;
 
+  //! Set the given value to the underlying data
+  void setData(const uint3 value) noexcept;
 
-  static constexpr size_t kCapacity = 16;
+
+  static constexpr size_t kCapacity = 4;
 
 
-  uint32b data_[12]; //!< 16 float samples are encoded into uint[12]
+  uint32b data0_, //!< 4 float samples are encoded into 3 uint
+          data1_,
+          data2_;
 };
 
+//!
+size_t calcSampleSetSize(const size_t max_bounces) noexcept;
+
 //! Return the 2d samples
-float2 getSample2D(const zivc::ConstGlobalPtr<PrimarySampleSet> sample_set,
+float2 getSample2D(const zivc::ConstGlobalPtr<PrimarySampleSet> ptr,
+                   const size_t global_index,
+                   const size_t global_offset,
                    const SampleSetUsage usage,
-                   const size_t index,
-                   const size_t set_offset,
                    const size_t bounce) noexcept;
+
+//!
+PrimarySampleSet getSampleSet(zivc::ConstGlobalPtr<PrimarySampleSet> ptr,
+                              const size_t global_index,
+                              const size_t global_offset,
+                              const size_t set_index) noexcept;
+
+//!
+void setSampleSet(zivc::GlobalPtr<PrimarySampleSet> ptr,
+                  const PrimarySampleSet set,
+                  const size_t global_index,
+                  const size_t global_offset,
+                  const size_t set_index) noexcept;
 
 } /* namespace nanairo */
 

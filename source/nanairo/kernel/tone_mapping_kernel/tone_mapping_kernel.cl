@@ -31,14 +31,14 @@ __kernel void applyToneMappingKernel(
 
   const uint2 resolution = context_info.imageResolution();
   const uint32b n = resolution.x * resolution.y;
-  const uint32b global_index = zivc::getGlobalIdX();
-  if (n <= global_index)
+  const uint32b gindex = zivc::getGlobalIdX();
+  if (n <= gindex)
     return;
 
-  float4 value = hdr_in[global_index];
+  float4 value = hdr_in[gindex];
   value.w = 1.0f;
   value = zivc::clamp(255.5f * value, zivc::makeFloat4(0.0f), zivc::makeFloat4(255.0f));
-  ldr_out[global_index] = zivc::cast<uchar4>(value);
+  ldr_out[gindex] = zivc::cast<uchar4>(value);
 }
 
 #endif /* NANAIRO_KERNEL_TONE_MAPPING_KERNEL_CL */
