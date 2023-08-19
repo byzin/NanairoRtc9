@@ -31,12 +31,12 @@ enum class SampleSetUsage : uint32b
 {
   kImagePlaneX = 0,
   kImagePlaneY,
-  // Start of an iteration
+  // Start of a bounce iteration
   kBsdfSampleX,
   kBsdfSampleY,
   kLightSampleX,
   kLightSampleY,
-  // End of an iteration
+  // End of a bounce iteration
   kMax,
   kBounceOffset = 4 //!< The number of samples during an iteration
 };
@@ -84,6 +84,13 @@ class PrimarySampleSet
 
   uint32b data_[12]; //!< 16 float samples are encoded into uint[12]
 };
+
+//! Return the 2d samples
+float2 getSample2D(const zivc::ConstGlobalPtr<PrimarySampleSet> sample_set,
+                   const SampleSetUsage usage,
+                   const size_t index,
+                   const size_t set_offset,
+                   const size_t bounce) noexcept;
 
 } /* namespace nanairo */
 

@@ -169,6 +169,33 @@ uint3 PrimarySampleSet::getMask(const size_t i) noexcept
   return mask;
 }
 
+/*!
+  \details No detailed description
+
+  \param [in] sample_set No description.
+  \param [in] usage No description.
+  \param [in] index No description.
+  \param [in] set_offset No description.
+  \param [in] bounce No description.
+  \return No description
+  */
+inline
+float2 getSample2D(const zivc::ConstGlobalPtr<PrimarySampleSet> sample_set,
+                   const SampleSetUsage usage,
+                   const size_t index,
+                   const size_t set_offset,
+                   const size_t bounce) noexcept
+{
+  const size_t d = static_cast<size_t>(usage) +
+                   bounce * static_cast<size_t>(SampleSetUsage::kBounceOffset);
+  const size_t set_index = d / PrimarySampleSet::capacity();
+  const size_t sample_index = d - set_index * PrimarySampleSet::capacity();
+  const PrimarySampleSet set = sample_set[index * set_offset + set_index];
+  const float2 sample = zivc::makeFloat2(set.get(sample_index),
+                                         set.get(sample_index + 1));
+  return sample;
+}
+
 } /* namespace nanairo */
 
 #endif /* NANAIRO_CL_PRIMARY_SAMPLE_SET_INL_HPP */

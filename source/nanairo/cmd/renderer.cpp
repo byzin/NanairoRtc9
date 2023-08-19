@@ -173,14 +173,14 @@ struct Renderer::Data
       primary_sample_space_kernel_->setName(params.kernelName());
     }
     // Test kernel
-//    {
-//      const zivc::KernelInitParams params = ZIVC_CREATE_KERNEL_INIT_PARAMS(
-//                                                test_kernel,
-//                                                testKernel,
-//                                                1);
-//      test_kernel_ = device_->createKernel(params);
-//      test_kernel_->setName(params.kernelName());
-//    }
+    {
+      const zivc::KernelInitParams params = ZIVC_CREATE_KERNEL_INIT_PARAMS(
+                                                test_kernel,
+                                                testKernel,
+                                                1);
+      test_kernel_ = device_->createKernel(params);
+      test_kernel_->setName(params.kernelName());
+    }
     // Tone mapping kernel
     {
       const zivc::KernelInitParams params = ZIVC_CREATE_KERNEL_INIT_PARAMS(
@@ -212,7 +212,8 @@ struct Renderer::Data
   void initializeBuffers(const CliOptions& options)
   {
     const std::size_t n = options.image_width_ * options.image_height_; // The number of pixels
-    sample_set_buffer_ = createBuffer<zivc::cl::nanairo::PrimarySampleSet>(n, {zivc::BufferUsage::kPreferDevice}, "PrimarySampleSetBuffer");
+    const std::size_t set_n = n * zivc::cl::nanairo::PrimarySampleSet::getSetOffset(context_info_.maxNumOfBounces());
+    sample_set_buffer_ = createBuffer<zivc::cl::nanairo::PrimarySampleSet>(set_n, {zivc::BufferUsage::kPreferDevice}, "PrimarySampleSetBuffer");
     hdr_out_buffer_ = createBuffer<zivc::cl::float4>(n, {zivc::BufferUsage::kPreferDevice}, "HdrOutBuffer");
     ldr_out_buffer_ = createBuffer<zivc::cl::uchar4>(n, {zivc::BufferUsage::kPreferDevice}, "LdrOutBuffer");
     ldr_host_buffer_ = createBuffer<zivc::cl::uchar4>(n, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kRandomAccessible}, "LdrHostBuffer");
@@ -335,6 +336,41 @@ void Renderer::initialize(const CliOptions& options, const GltfScene& scene)
   */
 void Renderer::renderFrame(const std::size_t frame,const std::size_t iteration)
 {
+  const zivc::cl::uint2 resolution = data_->context_info_.imageResolution();
+  const zivc::uint32b n = resolution.x * resolution.y;
+
+  data_->render_info_.initialize();
+  data_->render_info_.setCurrentFrame(frame);
+  data_->render_info_.setCurrentIteration(iteration);
+
+  // Generate primary sample set
+  {
+    Data::PrimarySampleSpaceKernelT& kernel = data_->primary_sample_space_kernel_;
+    zivc::KernelLaunchOptions options = kernel->createOptions();
+    options.setQueueIndex(0);
+    options.setWorkSize({{n}});
+    options.requestFence(false);
+    options.setLabel("PrimarySampleSpace");
+    [[maybe_unused]] zivc::LaunchResult result = kernel->run(*data_->sample_set_buffer_,
+                                                             data_->context_info_,
+                                                             data_->render_info_,
+                                                             options);
+  }
+
+  // Run the test kernel
+  {
+    Data::TestKernelT& kernel = data_->test_kernel_;
+    zivc::KernelLaunchOptions options = kernel->createOptions();
+    options.setQueueIndex(0);
+    options.setWorkSize({{n}});
+    options.requestFence(true);
+    options.setLabel("Test");
+    zivc::LaunchResult result = kernel->run(*data_->sample_set_buffer_,
+                                            *data_->hdr_out_buffer_,
+                                            data_->context_info_,
+                                            options);
+    result.fence().wait();
+  }
 }
 
 /*!

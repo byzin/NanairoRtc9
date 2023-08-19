@@ -38,6 +38,13 @@ __kernel void testKernel(
 
   //
   const size_t set_offset = nanairo::PrimarySampleSet::getSetOffset(context_info.maxNumOfBounces());
+  const float2 sample = nanairo::getSample2D(sample_set,
+                                             nanairo::SampleSetUsage::kImagePlaneX,
+                                             global_index,
+                                             set_offset,
+                                             0);
+  hdr_out[global_index].x = sample.x;
+  hdr_out[global_index].y = sample.y;
 }
 
 #endif /* NANAIRO_KERNEL_TEST_KERNEL_CL */

@@ -29,11 +29,17 @@ namespace nanairo {
   */
 struct RenderInfo
 {
+  //! Return the current frame
+  uint16b currentFrame() const noexcept;
+
   //! Return the current iteration
   uint16b currentIteration() const noexcept;
 
   //! Initialize the render info
   void initialize() noexcept;
+
+  //! Set the current frame number
+  void setCurrentFrame(const uint16b frame) noexcept;
 
   //! Set the current iteration
   void setCurrentIteration(const uint16b iteration) noexcept;

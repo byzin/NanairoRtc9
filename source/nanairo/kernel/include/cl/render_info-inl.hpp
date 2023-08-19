@@ -31,9 +31,20 @@ namespace nanairo {
   \return No description
   */
 inline
-uint16b RenderInfo::currentIteration() const noexcept
+uint16b RenderInfo::currentFrame() const noexcept
 {
   return Utility::getLowerU16(data0_.x);
+}
+
+/*!
+  \details No detailed description
+
+  \return No description
+  */
+inline
+uint16b RenderInfo::currentIteration() const noexcept
+{
+  return Utility::getUpperU16(data0_.x);
 }
 
 /*!
@@ -48,12 +59,23 @@ void RenderInfo::initialize() noexcept
 /*!
   \details No detailed description
 
+  \param [in] frame No description.
+  */
+inline
+void RenderInfo::setCurrentFrame(const uint16b frame) noexcept
+{
+  data0_.x = Utility::setLowerU16(frame, data0_.x);
+}
+
+/*!
+  \details No detailed description
+
   \param [in] iteration No description.
   */
 inline
 void RenderInfo::setCurrentIteration(const uint16b iteration) noexcept
 {
-  data0_.x = Utility::setLowerU16(iteration, data0_.x);
+  data0_.x = Utility::setUpperU16(iteration, data0_.x);
 }
 
 /*!

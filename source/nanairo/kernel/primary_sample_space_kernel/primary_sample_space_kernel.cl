@@ -44,7 +44,7 @@ __kernel void sampleInPrimarySampleSpaceKernel(
   // 
   const uint32b ite_offset = render_info.currentIteration() / RngEngine::getPeriod();
   const uint32b ite = render_info.currentIteration() % RngEngine::getPeriod();
-  uint32b seed = ite_offset * n + context_info.seed();
+  uint32b seed = global_index + ite_offset * n + context_info.seed();
 
   //
   const size_t set_offset = nanairo::PrimarySampleSet::getSetOffset(context_info.maxNumOfBounces());
