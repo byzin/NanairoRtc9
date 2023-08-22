@@ -18,6 +18,8 @@
 // Standard C++ library
 #include <cstddef>
 #include <memory>
+// Tinygltf
+#include "tiny_gltf.h"
 // Zisc
 #include "zisc/memory/std_memory_resource.hpp"
 

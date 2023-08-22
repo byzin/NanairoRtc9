@@ -49,7 +49,7 @@ void loadGltfScene(const std::string_view gltf_scene_path, nanairo::GltfScene* s
     std::cerr << "  Loading gltf scene '" << gltf_scene_path << "' failed." << std::endl;
   }
 
-  scene->load(data);
+  scene->loadBinary(data);
 }
 
 void saveImage(const std::size_t frame, const nanairo::LdrImage& image, const nanairo::PngWriter& writer)

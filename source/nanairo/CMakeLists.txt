@@ -106,6 +106,13 @@ macro(Nanairo_setNanairoProject)
       SOURCE_FILES ${kernel_sources}
       INCLUDE_DIRS ${common_header_dir})
   target_link_libraries(${PROJECT_NAME} PRIVATE ${kernel_name})
+  ## Ray cast kernel
+  cmake_path(SET kernel_set_dir NORMALIZE "${kernel_dir}/ray_cast_kernel")
+  file(GLOB_RECURSE kernel_sources ${kernel_set_dir}/*.cl)
+  Zivc_addKernelSet(ray_cast_kernel ${PROJECT_VERSION} kernel_name
+      SOURCE_FILES ${kernel_sources}
+      INCLUDE_DIRS ${common_header_dir})
+  target_link_libraries(${PROJECT_NAME} PRIVATE ${kernel_name})
   ## Tone mapping kernel
   cmake_path(SET kernel_set_dir NORMALIZE "${kernel_dir}/tone_mapping_kernel")
   file(GLOB_RECURSE kernel_sources ${kernel_set_dir}/*.cl)

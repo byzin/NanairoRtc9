@@ -43,6 +43,8 @@
 !/source/nanairo/kernel/include/cl/*.hpp
 !/source/nanairo/kernel/primary_sample_space_kernel/
 !/source/nanairo/kernel/primary_sample_space_kernel/*.cl
+!/source/nanairo/kernel/ray_cast_kernel/
+!/source/nanairo/kernel/ray_cast_kernel/*.cl
 !/source/nanairo/kernel/test_kernel/
 !/source/nanairo/kernel/test_kernel/*.cl
 !/source/nanairo/kernel/tone_mapping_kernel/
