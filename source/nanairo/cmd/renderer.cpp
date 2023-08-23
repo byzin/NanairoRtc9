@@ -328,7 +328,7 @@ void Renderer::initialize(const CliOptions& options, const GltfScene& scene)
 
   //
   if (options.is_debug_mode_)
-    printDeviceInfo();
+    printDebugInfo();
 }
 
 /*!
@@ -391,7 +391,7 @@ void Renderer::renderFrame(const std::size_t frame,const std::size_t iteration)
 /*!
   \details No detailed description
   */
-void Renderer::printDeviceInfo() const noexcept
+void Renderer::printDebugInfo() const noexcept
 {
   const auto to_mega_byte = [](const std::size_t bytes) noexcept
   {

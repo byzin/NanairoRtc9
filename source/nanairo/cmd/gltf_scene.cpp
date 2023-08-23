@@ -14,8 +14,11 @@
 
 #include "gltf_scene.hpp"
 // Standard C++ library
+#include <array>
 #include <concepts>
+#include <cstdio>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <istream>
 #include <memory>
@@ -132,6 +135,9 @@ void GltfScene::compileScene() noexcept
 
   // Compile the scene
   compileGeometries();
+
+  //
+  printDebugInfo();
 }
 
 /*!
@@ -192,6 +198,23 @@ auto GltfScene::getIndexGetter(const int component_type) noexcept -> IndexGetter
 zisc::pmr::memory_resource* GltfScene::resource() const noexcept
 {
   return meshes_.get_allocator().resource();
+}
+
+/*!
+  \details No detailed description
+  */
+void GltfScene::printDebugInfo() const noexcept
+{
+  for (std::size_t i = 0; i < meshes_.size(); ++i) {
+    //
+    constexpr std::size_t max_name_length = 32;
+    std::array<char, max_name_length> name{};
+    std::snprintf(name.data(), name.size(), "mesh%03d.obj", static_cast<int>(i));
+    std::ofstream obj_file{name.data()};
+    //
+    const Mesh& mesh = meshes_[i];
+    mesh.writeWavefrontFormat(&obj_file);
+  }
 }
 
 /*!

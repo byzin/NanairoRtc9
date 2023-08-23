@@ -65,8 +65,8 @@ class Renderer
   struct Data;
 
 
-  //! Print device info for debug
-  void printDeviceInfo() const noexcept;
+  //! Print debug info
+  void printDebugInfo() const noexcept;
 
 
   zisc::pmr::memory_resource* mem_resource_ = nullptr;

@@ -88,6 +88,9 @@ class GltfScene
   zisc::pmr::memory_resource* resource() const noexcept;
 
   //!
+  void printDebugInfo() const noexcept;
+
+  //!
   void processMesh(const std::size_t index,
                    const Matrix4x4& inv_transformation) noexcept;
 

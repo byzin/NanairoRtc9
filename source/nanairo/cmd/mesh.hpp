@@ -18,6 +18,7 @@
 // Standard C++ library
 #include <cstdint>
 #include <memory>
+#include <ostream>
 #include <vector>
 // Zisc
 #include "zisc/memory/std_memory_resource.hpp"
@@ -69,6 +70,10 @@ class Mesh
  public:
   //! Create a mesh
   Mesh(zisc::pmr::memory_resource* mem_resource) noexcept;
+
+
+  //! Write the mesh data as wavefront format
+  void writeWavefrontFormat(std::ostream* output) const noexcept;
 
 
   zisc::pmr::vector<U3> faces_;

@@ -15,6 +15,8 @@
 #include "mesh.hpp"
 // Standard C++ library
 #include <memory>
+#include <ostream>
+#include <vector>
 // Zisc
 #include "zisc/memory/std_memory_resource.hpp"
 
@@ -30,6 +32,27 @@ Mesh::Mesh(zisc::pmr::memory_resource* mem_resource) noexcept :
     normals_{decltype(normals_)::allocator_type{mem_resource}},
     texcoords_{decltype(texcoords_)::allocator_type{mem_resource}}
 {
+}
+
+/*!
+  \details No detailed description
+
+  \param [out] output No description.
+  */
+void Mesh::writeWavefrontFormat(std::ostream* output) const noexcept
+{
+  (*output) << "o Mesh" << std::endl;
+  for (const F3& vertex : vertices_)
+    (*output) << "v " << vertex.x_ << " " << vertex.y_ << " " << vertex.z_ << std::endl;
+  for (const F3& normal : normals_)
+    (*output) << "vn " << normal.x_ << " " << normal.y_ << " " << normal.z_ << std::endl;
+  for (const F2& texcoord : texcoords_)
+    (*output) << "vt " << texcoord.x_ << " " << texcoord.y_ << std::endl;
+  (*output) << "s 1" << std::endl;
+  for (const U3& face : faces_)
+    (*output) << "f " << face.x_ << "/" << face.x_ << "/" << face.x_ << " "
+                      << face.y_ << "/" << face.y_ << "/" << face.y_ << " "
+                      << face.z_ << "/" << face.z_ << "/" << face.z_ << std::endl;
 }
 
 } /* namespace nanairo */

@@ -56,7 +56,7 @@ void saveImage(const std::size_t frame, const nanairo::LdrImage& image, const na
 {
   constexpr std::size_t max_length = 256;
   std::array<char, max_length> file_name{};
-  std::snprintf(file_name.data(), file_name.size(), "%06d.png", static_cast<int>(frame));
+  std::snprintf(file_name.data(), file_name.size(), "%03d.png", static_cast<int>(frame));
   std::ofstream image_file{file_name.data(), std::ios_base::binary};
   writer.write(image, &image_file);
 }
