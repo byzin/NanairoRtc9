@@ -100,3 +100,13 @@ if(PROJECT_IS_TOP_LEVEL)
                        Nanairo-animation-cpu
                        PROPERTIES ENVIRONMENT "${test_env_list}")
 endif()
+
+# Install
+if(PROJECT_IS_TOP_LEVEL)
+  install(PROGRAMS ${PROJECT_SOURCE_DIR}/install/fps.txt
+                   ${PROJECT_SOURCE_DIR}/install/run.ps1
+                   ${PROJECT_SOURCE_DIR}/install/run.py
+          DESTINATION .)
+  install(DIRECTORY ${PROJECT_BINARY_DIR}/resource
+          DESTINATION .)
+endif()

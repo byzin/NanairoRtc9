@@ -158,13 +158,13 @@ macro(Nanairo_setNanairoProject)
   install(CODE ${vulkan_dep_code}
           COMPONENT renderer)
   ## Set vulkan installed directory
-  cmake_path(SET vulkan_sdk_dir "\\\${Z_SCRIPT_DIR}/..")
-  cmake_path(NATIVE_PATH vulkan_sdk_dir vulkan_sdk_dir)
-  list(INSERT vulkan_envs 0 "VULKAN_SDK=${vulkan_sdk_dir}")
+  #  cmake_path(SET vulkan_sdk_dir "\\\${Z_SCRIPT_DIR}/..")
+  #  cmake_path(NATIVE_PATH vulkan_sdk_dir vulkan_sdk_dir)
+  #  list(INSERT vulkan_envs 0 "VULKAN_SDK=${vulkan_sdk_dir}")
   ## Runner script
-  Zivc_getMakeSimpleRunScriptCode(${PROJECT_NAME} "../${CMAKE_INSTALL_BINDIR}" "../${CMAKE_INSTALL_LIBDIR}" "${vulkan_envs}" "runUnitTest" "${PROJECT_NAME}" run_script_code)
-  install(CODE ${run_script_code}
-          COMPONENT renderer)
+  #  Zivc_getMakeSimpleRunScriptCode(${PROJECT_NAME} "../${CMAKE_INSTALL_BINDIR}" "../${CMAKE_INSTALL_LIBDIR}" "${vulkan_envs}" "runUnitTest" "${PROJECT_NAME}" run_script_code)
+  #  install(CODE ${run_script_code}
+  #          COMPONENT renderer)
 endmacro(Nanairo_setNanairoProject)
 
 

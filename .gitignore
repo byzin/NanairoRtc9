@@ -67,6 +67,10 @@
 !/resource/
 !/resource/scene/
 !/resource/scene/*.glb.zip
+!/install/
+!/install/run.ps1
+!/install/run.py
+!/install/fps.txt
 
 # Build directories
 !/build/
