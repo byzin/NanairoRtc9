@@ -137,7 +137,7 @@ void GltfScene::compileScene() noexcept
   compileGeometries();
 
   //
-  printDebugInfo();
+  //printDebugInfo();
 }
 
 /*!
@@ -270,11 +270,11 @@ void GltfScene::processMesh(const std::size_t index,
   dest.texcoords_.reserve(num_of_texcoords);
   dest.faces_.reserve(num_of_faces);
 
-  std::cout << "##   mesh = " << mesh.name
-            << ", nVerts=" << num_of_vertices 
-            << ", nNormals=" << num_of_normals
-            << ", nTexs=" << num_of_texcoords
-            << ", nFaces=" << num_of_faces << std::endl; 
+//  std::cout << "##   mesh = " << mesh.name
+//            << ", nVerts=" << num_of_vertices 
+//            << ", nNormals=" << num_of_normals
+//            << ", nTexs=" << num_of_texcoords
+//            << ", nFaces=" << num_of_faces << std::endl; 
 
   for (std::size_t i = 0; i < mesh.primitives.size(); ++i) {
     const tinygltf::Primitive& prim = mesh.primitives[i];
@@ -370,7 +370,7 @@ void GltfScene::processNode(const std::size_t index,
 {
   const tinygltf::Node& node = model().nodes[index];
 
-  std::cout << "## node[" << level << "] =" << node.name << std::endl;
+//  std::cout << "## node[" << level << "] =" << node.name << std::endl;
 
   Matrix4x4 inv_transformation = parent_inv_transformation;
 
@@ -410,17 +410,17 @@ void GltfScene::processNode(const std::size_t index,
     processMesh(mesh_index, inv_transformation);
   }
 
-  if (node.light != -1) {
-    std::cout << "##   light" << std::endl;
-  }
-
-  if (node.camera != -1) {
-    std::cout << "##   camera" << std::endl;
-  }
-
-  if (!node.extensions.empty()) {
-    std::cout << "##   extensions" << std::endl;
-  }
+//  if (node.light != -1) {
+//    std::cout << "##   light" << std::endl;
+//  }
+//
+//  if (node.camera != -1) {
+//    std::cout << "##   camera" << std::endl;
+//  }
+//
+//  if (!node.extensions.empty()) {
+//    std::cout << "##   extensions" << std::endl;
+//  }
 
   for (const int child_index : node.children) {
     processNode(child_index, inv_transformation, level + 1);

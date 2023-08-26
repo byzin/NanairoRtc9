@@ -79,10 +79,10 @@ if(PROJECT_IS_TOP_LEVEL)
   file(MAKE_DIRECTORY ${test_dir})
   enable_testing()
   add_test(NAME Nanairo-single-vulkan
-               COMMAND Nanairo ${dest_scene_path} --min-frame 0 --max-frame 1 --debug
+               COMMAND Nanairo ${dest_scene_path} --min-frame 0 --max-frame 1 --time-budget 4000 --debug
                WORKING_DIRECTORY ${test_dir})
   add_test(NAME Nanairo-single-cpu
-               COMMAND Nanairo ${dest_scene_path} --min-frame 0 --max-frame 1 --debug --force-cpu
+               COMMAND Nanairo ${dest_scene_path} --min-frame 0 --max-frame 1 --time-budget 4000 --debug --force-cpu
                WORKING_DIRECTORY ${test_dir})
   add_test(NAME Nanairo-animation-vulkan
                COMMAND Nanairo ${dest_scene_path} --debug

@@ -56,6 +56,10 @@ std::unique_ptr<CLI::App> createCommandLineParser(CliOptions* options) noexcept
     [[maybe_unused]] CLI::Option* option = parser->add_option("--max-frame", options->max_frame_, desc.data());
   }
   {
+    constexpr std::string_view desc = "Specify the time budget (in milliseconds) for the animation rendering."sv;
+    [[maybe_unused]] CLI::Option* option = parser->add_option("--time-budget", options->time_budget_, desc.data());
+  }
+  {
     constexpr std::string_view desc = "Enable debug mode."sv;
     [[maybe_unused]] CLI::Option* option = parser->add_flag("--debug", options->is_debug_mode_, desc.data());
   }

@@ -42,7 +42,8 @@ struct CliOptions
   std::size_t image_width_ = 1920;
   std::size_t image_height_ = 1080;
   std::size_t min_frame_ = 0;
-  std::size_t max_frame_ = 100;
+  std::size_t max_frame_ = 30;
+  std::size_t time_budget_ = 290'000;
   bool is_debug_mode_ = false;
   bool is_cpu_forced_ = false;
   [[maybe_unused]] std::array<std::uint8_t, 2> padd_;
