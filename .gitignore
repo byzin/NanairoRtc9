@@ -63,6 +63,7 @@
 !/source/dependencies/Zisc
 !/source/dependencies/Zivc
 !/source/dependencies/zlib
+!/source/dependencies/zstd
 # Resources
 !/resource/
 !/resource/scene/
