@@ -195,6 +195,60 @@ function(addZlib binary_dir)
 endfunction(addZlib)
 
 
+# Build Zstd
+function(addZstd binary_dir)
+  if(TARGET Zstd::Zstd)
+    return()
+  else()
+    message(STATUS "Add Zstd subdirectory.")
+  endif()
+
+  cmake_path(SET project_dir NORMALIZE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/..")
+  cmake_path(SET zivc_path "${project_dir}/source/dependencies/Zivc/source/zivc")
+  include("${zivc_path}/cmake/general.cmake")
+  Zivc_getPlatformFlags(platform_definitions)
+  Zivc_setVariablesOnCMake(${platform_definitions})
+  # Add Zstd
+  Zivc_setInternalValue(ZSTD_BUILD_STATIC ON)
+  Zivc_setInternalValue(ZSTD_BUILD_SHARED OFF)
+  Zivc_setInternalValue(ZSTD_LEGACY_SUPPORT OFF)
+  Zivc_setInternalValue(ZSTD_MULTITHREAD_SUPPORT OFF)
+  Zivc_setInternalValue(ZSTD_BUILD_PROGRAMS OFF)
+  Zivc_setInternalValue(ZSTD_BUILD_CONTRIB OFF)
+  Zivc_setInternalValue(ZSTD_BUILD_TESTS OFF)
+  Zivc_setInternalValue(ZSTD_USE_STATIC_RUNTIME OFF)
+  Zivc_setInternalValue(ZSTD_PROGRAMS_LINK_SHARED OFF)
+  cmake_path(SET dependencies_dir NORMALIZE "${project_dir}/source/dependencies")
+  cmake_path(SET zstd_path NORMALIZE "${dependencies_dir}/zstd")
+  Zivc_checkSubmodule("${zstd_path}")
+  add_subdirectory("${zstd_path}/build/cmake" "${binary_dir}" EXCLUDE_FROM_ALL)
+  Zivc_checkTarget(libzstd_static)
+  add_library(Zstd::Zstd ALIAS libzstd_static)
+  Zivc_checkTarget(Zstd::Zstd)
+  # Properties
+  set_target_properties(libzstd_static PROPERTIES C_STANDARD 17
+                                                  C_STANDARD_REQUIRED ON
+                                                  CXX_STANDARD 20
+                                                  CXX_STANDARD_REQUIRED ON)
+  # Supress warnings
+  set(zstd_warning_flags "")
+  if(Z_VISUAL_STUDIO)
+    list(APPEND zstd_warning_flags /w)
+  elseif(Z_CLANG AND NOT Z_APPLE_CLANG)
+    list(APPEND zstd_warning_flags -Wno-unused-command-line-argument
+                                   -Wno-unused-but-set-variable
+                                   )
+  endif()
+  target_compile_options(libzstd_static PRIVATE ${zstd_warning_flags})
+  # Headers
+  cmake_path(SET zstd_dest_inc_dir "${binary_dir}/include")
+  file(MAKE_DIRECTORY "${zstd_dest_inc_dir}")
+  file(COPY "${zstd_path}/lib/zstd.h" "${zstd_path}/lib/zstd_errors.h"
+       DESTINATION "${zstd_dest_inc_dir}")
+  target_include_directories(libzstd_static SYSTEM INTERFACE $<BUILD_INTERFACE:${zstd_dest_inc_dir}>)
+endfunction(addZstd)
+
+
 # Build spng
 function(addSpng binary_dir)
   if(TARGET Spng::spng)

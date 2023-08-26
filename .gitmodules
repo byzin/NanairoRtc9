@@ -19,3 +19,6 @@
 [submodule "source/dependencies/zlib"]
 	path = source/dependencies/zlib
 	url = https://github.com/madler/zlib
+[submodule "source/dependencies/zstd"]
+	path = source/dependencies/zstd
+	url = https://github.com/facebook/zstd.git
