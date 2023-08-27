@@ -64,6 +64,10 @@ std::unique_ptr<CLI::App> createCommandLineParser(CliOptions* options) noexcept
     [[maybe_unused]] CLI::Option* option = parser->add_flag("--debug", options->is_debug_mode_, desc.data());
   }
   {
+    constexpr std::string_view desc = "Disable vulkan debug mode."sv;
+    [[maybe_unused]] CLI::Option* option = parser->add_flag("--no-vulkan-debug", options->exclude_vulkan_debug_mode_, desc.data());
+  }
+  {
     constexpr std::string_view desc = "Force using cpu as the kernel device."sv;
     [[maybe_unused]] CLI::Option* option = parser->add_flag("--force-cpu", options->is_cpu_forced_, desc.data());
   }

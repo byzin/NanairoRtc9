@@ -45,8 +45,9 @@ struct CliOptions
   std::size_t max_frame_ = 30;
   std::size_t time_budget_ = 290'000;
   bool is_debug_mode_ = false;
+  bool exclude_vulkan_debug_mode_ = false;
   bool is_cpu_forced_ = false;
-  [[maybe_unused]] std::array<std::uint8_t, 2> padd_;
+  [[maybe_unused]] std::array<std::uint8_t, 5> padd_;
 };
 
 static_assert(sizeof(bool) == 1);

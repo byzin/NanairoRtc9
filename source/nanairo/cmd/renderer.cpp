@@ -120,8 +120,8 @@ struct Renderer::Data
     context_options.setContextVersionMajor(0);
     context_options.setContextVersionMajor(1);
     context_options.setContextVersionPatch(0);
-    context_options.enableVulkanBackend(true);
-    context_options.enableDebugMode(options.is_debug_mode_);
+    context_options.enableVulkanBackend(!options.is_cpu_forced_);
+    context_options.enableDebugMode(options.is_debug_mode_ && !options.exclude_vulkan_debug_mode_);
 
     context_ = zivc::createContext(context_options);
   }
