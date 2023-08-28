@@ -156,6 +156,7 @@ int main(const int argc, const char* const* const argv)
     };
 
     //
+    std::array<char, 64> frame_label{};
     for (std::size_t frame = options.min_frame_; frame < options.max_frame_; ++frame) {
       renderer->clearFrame();
       renderer->update(*gltf_scene, frame);
@@ -164,7 +165,9 @@ int main(const int argc, const char* const* const argv)
       renderer->getFrame(ldr_image.get());
       png_writer->initialize();
       saveImage(frame, *ldr_image, *png_writer);
-      if (check_time("Render"))
+
+      std::snprintf(frame_label.data(), frame_label.size(), "Frame%03d", static_cast<int>(frame));
+      if (check_time(frame_label.data()))
         break;
     }
 
