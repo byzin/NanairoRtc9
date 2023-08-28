@@ -158,6 +158,7 @@ int main(const int argc, const char* const* const argv)
     //
     for (std::size_t frame = options.min_frame_; frame < options.max_frame_; ++frame) {
       renderer->clearFrame();
+      renderer->update(*gltf_scene, frame);
       for (std::size_t iteration = 0; check_frame_time(iteration); ++iteration)
         renderer->renderFrame(frame, iteration);
       renderer->getFrame(ldr_image.get());

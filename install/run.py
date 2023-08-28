@@ -7,7 +7,7 @@ inst_addr1 = sys.argv[2]
 key_path = R'C:\Users\Administrator\.ssh\id_rsa'
 
 # ノンブロッキング、つまりローカルのコマンドの終了は待たない。
-local_commands = R'.\Nanairo.exe resource\scene\scene.glb --min-frame 0 --max-frame 90 --debug'
+local_commands = R'.\Nanairo.exe resource\scene\scene.glb --min-frame 0 --max-frame 90 --debug --no-vulkan-debug'
 local_process = subprocess.Popen(local_commands.split(' '))
 
 ssh = paramiko.SSHClient()
@@ -21,7 +21,7 @@ cd $home\zin_gpu
 $Env:VK_SDK_PATH = '.\vulkan'
 $Env:VULKAN_SDK = '.\vulkan'
 $Env:VK_LAYER_PATH = '.\vulkan\Bin'
-.\Nanairo.exe resource\scene\scene.glb --min-frame 90 --max-frame 180 --debug
+.\Nanairo.exe resource\scene\scene.glb --min-frame 90 --max-frame 180 --debug --no-vulkan-debug
 """
 (_, remote_stdout, remote_stderr) = ssh.exec_command(remote_commands)
 

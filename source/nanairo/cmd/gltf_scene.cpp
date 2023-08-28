@@ -29,10 +29,12 @@
 #include "tiny_gltf.h"
 // Zisc
 #include "zisc/binary_serializer.hpp"
+#include "zisc/bit.hpp"
 #include "zisc/function_reference.hpp"
 #include "zisc/zisc_config.hpp"
 #include "zisc/memory/std_memory_resource.hpp"
 // Nanairo
+#include "camera.hpp"
 #include "mesh.hpp"
 #include "zivc/kernel_set/kernel_set-ray_cast_kernel.hpp"
 
@@ -54,6 +56,16 @@ GltfScene::GltfScene([[maybe_unused]] zisc::pmr::memory_resource* mem_resource) 
 GltfScene::~GltfScene() noexcept
 {
   destroy();
+}
+
+/*!
+  \details No detailed description
+
+  \return No description
+  */
+const Camera& GltfScene::camera() const noexcept
+{
+  return camera_;
 }
 
 /*!
@@ -107,6 +119,16 @@ void GltfScene::loadBinary(std::istream& data) noexcept
 
   \return No description
   */
+std::span<const Mesh> GltfScene::meshList() const noexcept
+{
+  return meshes_;
+}
+
+/*!
+  \details No detailed description
+
+  \return No description
+  */
 const tinygltf::Model& GltfScene::model() const noexcept
 {
   return model_;
@@ -120,7 +142,7 @@ void GltfScene::compileGeometries() noexcept
   const tinygltf::Scene& s = model().scenes[model().defaultScene];
   for (const int index : s.nodes) {
     const Matrix4x4 m = Matrix4x4::identity();
-    processNode(index, m);
+    processNode(index, m, m);
   }
 }
 
@@ -220,26 +242,57 @@ void GltfScene::printDebugInfo() const noexcept
 /*!
   \details No detailed description
 
-  \param [in] model No description.
   \param [in] index No description.
+  \param [in] transformation No description.
+  */
+void GltfScene::processCamera(const std::size_t index,
+                              const Matrix4x4& transformation) noexcept
+{
+  const tinygltf::Camera& camera = model().cameras[index];
+  Camera& dest = camera_;
+
+  dest.yfov_ = camera.perspective.yfov;
+  dest.transformation_ = zisc::bit_cast<decltype(dest.transformation_)>(transformation);
+}
+
+/*!
+  \details No detailed description
+
+  \param [in] index No description.
+  \param [in] transformation No description.
+  \param [in] inv_transformation No description.
   */
 void GltfScene::processMesh(const std::size_t index,
-                            const zivc::cl::nanairo::Matrix4x4& inv_transformation) noexcept
+                            const Matrix4x4& transformation,
+                            const Matrix4x4& inv_transformation) noexcept
 {
   const tinygltf::Mesh& mesh = model().meshes[index];
   Mesh& dest = meshes_.emplace_back(resource());
 
+  // Reserve the memory for the mesh first
+  std::size_t num_of_faces = 0;
   std::size_t num_of_vertices = 0;
   std::size_t num_of_normals = 0;
   std::size_t num_of_texcoords = 0;
-  std::size_t num_of_faces = 0;
   for (std::size_t i = 0; i < mesh.primitives.size(); ++i) {
     const tinygltf::Primitive& prim = mesh.primitives[i];
 
+    // Calculate the size of faces
+    {
+      const tinygltf::Accessor& accessor = model().accessors[prim.indices];
+      num_of_faces += accessor.count;
+    }
+
     // Calculate the size of vertices, normals and texcoords
     switch (prim.mode) {
-     case TINYGLTF_MODE_TRIANGLE_FAN:
-     case TINYGLTF_MODE_TRIANGLE_STRIP:
+     case TINYGLTF_MODE_TRIANGLE_FAN: {
+      std::cerr << "## Triangle Fan." << std::endl;
+      break;
+     }
+     case TINYGLTF_MODE_TRIANGLE_STRIP: {
+      std::cerr << "## Triangle Strip." << std::endl;
+      break;
+     }
      case TINYGLTF_MODE_TRIANGLES: {
       using PairT = decltype(prim.attributes)::value_type;
       for (const PairT& attribute : prim.attributes) {
@@ -258,31 +311,43 @@ void GltfScene::processMesh(const std::size_t index,
       break;
      }
     }
-
-    // Calculate the size of faces
-    {
-      const tinygltf::Accessor& accessor = model().accessors[prim.indices];
-      num_of_faces += accessor.count;
-    }
   }
+  dest.faces_.reserve(num_of_faces);
   dest.vertices_.reserve(num_of_vertices);
   dest.normals_.reserve(num_of_normals);
   dest.texcoords_.reserve(num_of_texcoords);
-  dest.faces_.reserve(num_of_faces);
 
-//  std::cout << "##   mesh = " << mesh.name
-//            << ", nVerts=" << num_of_vertices 
-//            << ", nNormals=" << num_of_normals
-//            << ", nTexs=" << num_of_texcoords
-//            << ", nFaces=" << num_of_faces << std::endl; 
-
+  // Load the actual mesh info
   for (std::size_t i = 0; i < mesh.primitives.size(); ++i) {
     const tinygltf::Primitive& prim = mesh.primitives[i];
 
+    // Load faces
+    {
+      const tinygltf::Accessor& accessor = model().accessors[prim.indices];
+      const tinygltf::BufferView& buffer_view = model().bufferViews[accessor.bufferView];
+      const tinygltf::Buffer& buffer = model().buffers[buffer_view.buffer];
+      const unsigned char* const ptr = buffer.data.data() + (buffer_view.byteOffset + accessor.byteOffset);
+      const auto byte_stride = static_cast<std::size_t>(accessor.ByteStride(buffer_view));
+      const std::size_t offset = dest.vertices_.size();
+      const zisc::FunctionReference get_index = getIndexGetter(accessor.componentType);
+      for (std::size_t j = 0; j < accessor.count; j += 3) {
+        const std::uint32_t i0 = offset + get_index(ptr + byte_stride * (j + 0));
+        const std::uint32_t i1 = offset + get_index(ptr + byte_stride * (j + 1));
+        const std::uint32_t i2 = offset + get_index(ptr + byte_stride * (j + 2));
+        dest.faces_.emplace_back(i0, i1, i2);
+      }
+    }
+
     // Load vertices, normals and texcoords
     switch (prim.mode) {
-     case TINYGLTF_MODE_TRIANGLE_FAN:
-     case TINYGLTF_MODE_TRIANGLE_STRIP:
+     case TINYGLTF_MODE_TRIANGLE_FAN: {
+      std::cerr << "## Triangle Fan." << std::endl;
+      break;
+     }
+     case TINYGLTF_MODE_TRIANGLE_STRIP: {
+      std::cerr << "## Triangle Strip." << std::endl;
+      break;
+     }
      case TINYGLTF_MODE_TRIANGLES: {
       using PairT = decltype(prim.attributes)::value_type;
       for (const PairT& attribute : prim.attributes) {
@@ -304,32 +369,32 @@ void GltfScene::processMesh(const std::size_t index,
             std::cerr << "[error] A position has unsupported component type." << std::endl;
           }
         }
-        if (attribute.first == "NORMAL") {
-          if ((accessor.type == TINYGLTF_TYPE_VEC3) &&
-              (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)) {
-            for (std::size_t j = 0; j < accessor.count; ++j) {
-              const unsigned char* const p = ptr + j * byte_stride;
-              const std::span<const float> s{reinterpret_cast<const float*>(p), 3};
-              dest.normals_.emplace_back(s[0], s[1], s[2]);
-            }
-          }
-          else {
-            std::cerr << "[error] A normal has unsupported component type." << std::endl;
-          }
-        }
-        if (attribute.first == "TEXCOORD_0") {
-          if ((accessor.type == TINYGLTF_TYPE_VEC2) &&
-              (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)) {
-            for (std::size_t j = 0; j < accessor.count; ++j) {
-              const unsigned char* const p = ptr + j * byte_stride;
-              const std::span<const float> s{reinterpret_cast<const float*>(p), 2};
-              dest.texcoords_.emplace_back(s[0], s[1]);
-            }
-          }
-          else {
-            std::cerr << "[error] A texcoord has unsupported component type." << std::endl;
-          }
-        }
+        //if (attribute.first == "NORMAL") {
+        //  if ((accessor.type == TINYGLTF_TYPE_VEC3) &&
+        //      (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)) {
+        //    for (std::size_t j = 0; j < accessor.count; ++j) {
+        //      const unsigned char* const p = ptr + j * byte_stride;
+        //      const std::span<const float> s{reinterpret_cast<const float*>(p), 3};
+        //      dest.normals_.emplace_back(s[0], s[1], s[2]);
+        //    }
+        //  }
+        //  else {
+        //    std::cerr << "[error] A normal has unsupported component type." << std::endl;
+        //  }
+        //}
+        //if (attribute.first == "TEXCOORD_0") {
+        //  if ((accessor.type == TINYGLTF_TYPE_VEC2) &&
+        //      (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)) {
+        //    for (std::size_t j = 0; j < accessor.count; ++j) {
+        //      const unsigned char* const p = ptr + j * byte_stride;
+        //      const std::span<const float> s{reinterpret_cast<const float*>(p), 2};
+        //      dest.texcoords_.emplace_back(s[0], s[1]);
+        //    }
+        //  }
+        //  else {
+        //    std::cerr << "[error] A texcoord has unsupported component type." << std::endl;
+        //  }
+        //}
       }
       break;
      }
@@ -338,33 +403,19 @@ void GltfScene::processMesh(const std::size_t index,
       break;
      }
     }
-
-    // Load faces
-    {
-      const tinygltf::Accessor& accessor = model().accessors[prim.indices];
-      const tinygltf::BufferView& buffer_view = model().bufferViews[accessor.bufferView];
-      const tinygltf::Buffer& buffer = model().buffers[buffer_view.buffer];
-      const unsigned char* const ptr = buffer.data.data() + buffer_view.byteOffset + accessor.byteOffset;
-      const auto byte_stride = static_cast<std::size_t>(accessor.ByteStride(buffer_view));
-      const std::size_t offset = dest.faces_.size();
-      const zisc::FunctionReference get_index = getIndexGetter(accessor.componentType);
-      for (std::size_t j = 0; j < accessor.count; j += 3) {
-        const std::uint32_t i0 = offset + get_index(ptr + byte_stride * (j + 0));
-        const std::uint32_t i1 = offset + get_index(ptr + byte_stride * (j + 1));
-        const std::uint32_t i2 = offset + get_index(ptr + byte_stride * (j + 2));
-        dest.faces_.emplace_back(i0, i1, i2);
-      }
-    }
   }
 }
 
 /*!
   \details No detailed description
 
-  \param [in] model No description.
   \param [in] index No description.
+  \param [in] parent_transformation No description.
+  \param [in] parent_inv_transformation No description.
+  \param [in] level No description.
   */
 void GltfScene::processNode(const std::size_t index,
+                            const Matrix4x4& parent_transformation,
                             const Matrix4x4& parent_inv_transformation,
                             const std::size_t level) noexcept
 {
@@ -372,14 +423,21 @@ void GltfScene::processNode(const std::size_t index,
 
 //  std::cout << "## node[" << level << "] =" << node.name << std::endl;
 
+  Matrix4x4 transformation = parent_transformation;
   Matrix4x4 inv_transformation = parent_inv_transformation;
 
   if (!node.translation.empty()) {
     const auto tx = static_cast<float>(node.translation[0]);
     const auto ty = static_cast<float>(node.translation[1]);
     const auto tz = static_cast<float>(node.translation[2]);
-    const Matrix4x4 m = zivc::cl::nanairo::getInvTranslationMatrix(tx, ty, tz);
-    inv_transformation = m * inv_transformation;
+    {
+      const Matrix4x4 m = zivc::cl::nanairo::getTranslationMatrix(tx, ty, tz);
+      transformation = transformation * m;
+    }
+    {
+      const Matrix4x4 m = zivc::cl::nanairo::getInvTranslationMatrix(tx, ty, tz);
+      inv_transformation = m * inv_transformation;
+    }
   }
 
   if (!node.rotation.empty()) {
@@ -389,16 +447,28 @@ void GltfScene::processNode(const std::size_t index,
     const auto rw = static_cast<float>(node.rotation[3]);
     const zivc::cl::float4 r = zivc::cl::zivc::normalize(zivc::cl::float4{rx, ry, rz, rw});
     const zivc::cl::nanairo::Quaternion q = {r};
-    const Matrix4x4 m = zivc::cl::nanairo::getInvRotationMatrix(q);
-    inv_transformation = m * inv_transformation;
+    {
+      const Matrix4x4 m = zivc::cl::nanairo::getRotationMatrix(q);
+      transformation = transformation * m;
+    }
+    {
+      const Matrix4x4 m = zivc::cl::nanairo::getInvRotationMatrix(q);
+      inv_transformation = m * inv_transformation;
+    }
   }
 
   if (!node.scale.empty()) {
     const auto sx = static_cast<float>(node.scale[0]);
     const auto sy = static_cast<float>(node.scale[1]);
     const auto sz = static_cast<float>(node.scale[2]);
-    const Matrix4x4 m = zivc::cl::nanairo::getInvScalingMatrix(sx, sy, sz);
-    inv_transformation = m * inv_transformation;
+    {
+      const Matrix4x4 m = zivc::cl::nanairo::getScalingMatrix(sx, sy, sz);
+      transformation = transformation * m;
+    }
+    {
+      const Matrix4x4 m = zivc::cl::nanairo::getInvScalingMatrix(sx, sy, sz);
+      inv_transformation = m * inv_transformation;
+    }
   }
 
   if (!node.matrix.empty()) {
@@ -407,23 +477,24 @@ void GltfScene::processNode(const std::size_t index,
 
   if (node.mesh != -1) {
     const auto mesh_index = static_cast<std::size_t>(node.mesh);
-    processMesh(mesh_index, inv_transformation);
+    processMesh(mesh_index, transformation, inv_transformation);
   }
 
 //  if (node.light != -1) {
 //    std::cout << "##   light" << std::endl;
 //  }
-//
-//  if (node.camera != -1) {
-//    std::cout << "##   camera" << std::endl;
-//  }
-//
+
+  if (node.camera != -1) {
+    const auto camera_index = static_cast<std::size_t>(node.camera);
+    processCamera(camera_index, transformation);
+  }
+
 //  if (!node.extensions.empty()) {
 //    std::cout << "##   extensions" << std::endl;
 //  }
 
   for (const int child_index : node.children) {
-    processNode(child_index, inv_transformation, level + 1);
+    processNode(child_index, transformation, inv_transformation, level + 1);
   }
 }
 

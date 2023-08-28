@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <istream>
 #include <memory>
+#include <span>
 #include <vector>
 // Tinygltf
 #include "tiny_gltf.h"
@@ -30,6 +31,7 @@
 #include "zisc/function_reference.hpp"
 #include "zisc/memory/std_memory_resource.hpp"
 // Nanairo
+#include "camera.hpp"
 #include "mesh.hpp"
 
 namespace zivc::cl::nanairo {
@@ -56,11 +58,17 @@ class GltfScene
   ~GltfScene() noexcept;
 
 
+  //! Return the primary camera in the scene
+  const Camera& camera() const noexcept;
+
   //! Destroy the scene
   void destroy() noexcept;
 
   //! Load a gltf scene
   void loadBinary(std::istream& data) noexcept;
+
+  //! Return the list of the meshes in the scene
+  std::span<const Mesh> meshList() const noexcept;
 
   //! Return the underlying model
   const tinygltf::Model& model() const noexcept;
@@ -91,15 +99,22 @@ class GltfScene
   void printDebugInfo() const noexcept;
 
   //!
+  void processCamera(const std::size_t index,
+                     const Matrix4x4& transformation) noexcept;
+
+  //!
   void processMesh(const std::size_t index,
+                   const Matrix4x4& transformation,
                    const Matrix4x4& inv_transformation) noexcept;
 
   //!
   void processNode(const std::size_t index,
+                   const Matrix4x4& parent_transformation,
                    const Matrix4x4& parent_inv_transformation,
                    const std::size_t level = 0) noexcept;
 
 
+  Camera camera_;
   zisc::pmr::vector<Mesh> meshes_;
   tinygltf::Model model_;
 };

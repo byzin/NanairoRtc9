@@ -48,11 +48,14 @@ void Mesh::writeWavefrontFormat(std::ostream* output) const noexcept
     (*output) << "vn " << normal.x_ << " " << normal.y_ << " " << normal.z_ << std::endl;
   for (const F2& texcoord : texcoords_)
     (*output) << "vt " << texcoord.x_ << " " << texcoord.y_ << std::endl;
-  (*output) << "s 1" << std::endl;
+  (*output) << "s 0" << std::endl;
   for (const U3& face : faces_)
-    (*output) << "f " << face.x_ << "/" << face.x_ << "/" << face.x_ << " "
-                      << face.y_ << "/" << face.y_ << "/" << face.y_ << " "
-                      << face.z_ << "/" << face.z_ << "/" << face.z_ << std::endl;
+    //(*output) << "f " << face.x_ << "/" << face.x_ << "/" << face.x_ << " "
+    //                  << face.y_ << "/" << face.y_ << "/" << face.y_ << " "
+    //                  << face.z_ << "/" << face.z_ << "/" << face.z_ << std::endl;
+    (*output) << "f " << (face.x_ + 1) << " "
+                      << (face.y_ + 1) << " "
+                      << (face.z_ + 1) << std::endl;
 }
 
 } /* namespace nanairo */

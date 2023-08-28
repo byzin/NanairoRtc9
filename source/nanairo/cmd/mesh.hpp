@@ -22,43 +22,10 @@
 #include <vector>
 // Zisc
 #include "zisc/memory/std_memory_resource.hpp"
+// Nanairo
+#include "utility.hpp"
 
 namespace nanairo {
-
-/*!
-  \brief No brief description
-
-  No detailed description.
-  */
-struct U3
-{
-  std::uint32_t x_ = 0,
-                y_ = 0,
-                z_ = 0;
-};
-
-/*!
-  \brief No brief description
-
-  No detailed description.
-  */
-struct F2
-{
-  float x_ = 0.0f,
-        y_ = 0.0f;
-};
-
-/*!
-  \brief No brief description
-
-  No detailed description.
-  */
-struct F3
-{
-  float x_ = 0.0f,
-        y_ = 0.0f,
-        z_ = 0.0f;
-};
 
 /*!
   \brief No brief description

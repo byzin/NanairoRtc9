@@ -24,6 +24,7 @@
 #include <stdexcept>
 #include <string_view>
 // Zisc
+#include "zisc/bit.hpp"
 #include "zisc/memory/std_memory_resource.hpp"
 // Zivc
 #include "zivc/zivc.hpp"
@@ -33,6 +34,7 @@
 #include "ldr_image.hpp"
 // Nanairo kenrel
 #include "zivc/kernel_set/kernel_set-primary_sample_space_kernel.hpp"
+#include "zivc/kernel_set/kernel_set-ray_generation_kernel.hpp"
 #include "zivc/kernel_set/kernel_set-test_kernel.hpp"
 #include "zivc/kernel_set/kernel_set-tone_mapping_kernel.hpp"
 
@@ -44,6 +46,14 @@ namespace kerneldecl {
 {
   const zivc::KernelInitParams p = ZIVC_CREATE_KERNEL_INIT_PARAMS(primary_sample_space_kernel,
                                                                   sampleInPrimarySampleSpaceKernel,
+                                                                  1);
+  return zivc::SharedDevice{}->createKernel(p);
+}
+
+[[maybe_unused]] auto declRayGenerationKernel()
+{
+  const zivc::KernelInitParams p = ZIVC_CREATE_KERNEL_INIT_PARAMS(ray_generation_kernel,
+                                                                  generateRayKernel,
                                                                   1);
   return zivc::SharedDevice{}->createKernel(p);
 }
@@ -74,6 +84,7 @@ struct Renderer::Data
 {
   // Kernel declaration
   using PrimarySampleSpaceKernelT = decltype(kerneldecl::declPrimarySampleSpaceKernel());
+  using RayGenerationKernelT = decltype(kerneldecl::declRayGenerationKernel());
   using TestKernelT = decltype(kerneldecl::declTestKernel());
   using ToneMappingKernelT = decltype(kerneldecl::declToneMappingKernel());
 
@@ -84,13 +95,16 @@ struct Renderer::Data
   // Buffers
   zivc::SharedBuffer<zivc::uint32b> ray_count_buffer_;
   zivc::SharedBuffer<zivc::cl::nanairo::PrimarySampleSet> sample_set_buffer_;
+  zivc::SharedBuffer<zivc::cl::nanairo::Ray> ray_buffer_;
   zivc::SharedBuffer<zivc::cl::float4> hdr_out_buffer_;
   zivc::SharedBuffer<zivc::cl::uchar4> ldr_out_buffer_;
   zivc::SharedBuffer<zivc::cl::uchar4> ldr_host_buffer_;
   zivc::cl::nanairo::ContextInfo context_info_;
   zivc::cl::nanairo::RenderInfo render_info_;
+  zivc::cl::nanairo::CameraInfo camera_info_;
   // Kenrels
   PrimarySampleSpaceKernelT primary_sample_space_kernel_;
+  RayGenerationKernelT ray_generation_kernel_;
   TestKernelT test_kernel_;
   ToneMappingKernelT tone_mapping_kernel_;
 
@@ -100,11 +114,13 @@ struct Renderer::Data
     // Kernels
     tone_mapping_kernel_.reset();
     test_kernel_.reset();
+    ray_generation_kernel_.reset();
     primary_sample_space_kernel_.reset();
     // Buffers
     ldr_host_buffer_.reset();
     ldr_out_buffer_.reset();
     hdr_out_buffer_.reset();
+    ray_buffer_.reset();;
     sample_set_buffer_.reset();
     ray_count_buffer_.reset();
     // Device
@@ -174,6 +190,15 @@ struct Renderer::Data
       primary_sample_space_kernel_ = device_->createKernel(params);
       primary_sample_space_kernel_->setName(params.kernelName());
     }
+    // Primary sample space kernel
+    {
+      const zivc::KernelInitParams params = ZIVC_CREATE_KERNEL_INIT_PARAMS(
+                                                ray_generation_kernel,
+                                                generateRayKernel,
+                                                1);
+      ray_generation_kernel_ = device_->createKernel(params);
+      ray_generation_kernel_->setName(params.kernelName());
+    }
     // Test kernel
     {
       const zivc::KernelInitParams params = ZIVC_CREATE_KERNEL_INIT_PARAMS(
@@ -217,6 +242,7 @@ struct Renderer::Data
     ray_count_buffer_ = createBuffer<zivc::uint32b>(1, {zivc::BufferUsage::kPreferDevice, zivc::BufferFlag::kRandomAccessible}, "RayCount");
     const std::size_t set_n = n * zivc::cl::nanairo::calcSampleSetSize(context_info_.maxNumOfBounces());
     sample_set_buffer_ = createBuffer<zivc::cl::nanairo::PrimarySampleSet>(set_n, {zivc::BufferUsage::kPreferDevice}, "PrimarySampleSetBuffer");
+    ray_buffer_ = createBuffer<zivc::cl::nanairo::Ray>(n, {zivc::BufferUsage::kPreferDevice}, "RayBuffer");
     hdr_out_buffer_ = createBuffer<zivc::cl::float4>(n, {zivc::BufferUsage::kPreferDevice}, "HdrOutBuffer");
     ldr_out_buffer_ = createBuffer<zivc::cl::uchar4>(n, {zivc::BufferUsage::kPreferDevice}, "LdrOutBuffer");
     ldr_host_buffer_ = createBuffer<zivc::cl::uchar4>(n, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kRandomAccessible}, "LdrHostBuffer");
@@ -309,6 +335,27 @@ void Renderer::getFrame(LdrImage* output) const
 /*!
   \details No detailed description
 
+  \param [in] scene No description.
+  \param [in] frame No description.
+  */
+void Renderer::update(const GltfScene& scene, const std::size_t frame)
+{
+  // Update camera
+  {
+    const Camera& camera = scene.camera();
+    zivc::cl::nanairo::CameraInfo& info = data_->camera_info_;
+    // FOV
+    info.setFov(camera.yfov_);
+    // Transformation
+    zivc::cl::nanairo::Matrix4x4 m{};
+    std::copy_n(camera.transformation_.begin(), 16, &m.m1_.x);
+    info.setTransformation(m);
+  }
+}
+
+/*!
+  \details No detailed description
+
   \param [in] options No description.
   \param [in] scene No description.
   */
@@ -371,6 +418,22 @@ void Renderer::renderFrame(const std::size_t frame,const std::size_t iteration)
                                                                options);
     }
 
+    // Generate primary ray
+    {
+      Data::RayGenerationKernelT& kernel = data_->ray_generation_kernel_;
+      zivc::KernelLaunchOptions options = kernel->createOptions();
+      options.setQueueIndex(0);
+      options.setWorkSize({{n}});
+      options.requestFence(false);
+      options.setLabel("RayGeneration");
+      [[maybe_unused]] zivc::LaunchResult result = kernel->run(*data_->ray_count_buffer_,
+                                                               *data_->sample_set_buffer_,
+                                                               *data_->ray_buffer_,
+                                                               data_->context_info_,
+                                                               data_->camera_info_,
+                                                               options);
+    }
+
     // Run the test kernel
     {
       Data::TestKernelT& kernel = data_->test_kernel_;
@@ -380,7 +443,7 @@ void Renderer::renderFrame(const std::size_t frame,const std::size_t iteration)
       options.requestFence(true);
       options.setLabel("Test");
       zivc::LaunchResult result = kernel->run(*data_->ray_count_buffer_,
-                                              *data_->sample_set_buffer_,
+                                              *data_->ray_buffer_,
                                               *data_->hdr_out_buffer_,
                                               options);
       result.fence().wait();

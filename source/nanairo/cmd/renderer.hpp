@@ -60,6 +60,9 @@ class Renderer
   //! Render a frame
   void renderFrame(const std::size_t frame, const std::size_t iteration);
 
+  //!
+  void update(const GltfScene& scene, const std::size_t frame);
+
  private:
   //! The kernel data for the renderer
   struct Data;
