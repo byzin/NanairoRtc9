@@ -14,14 +14,18 @@
 
 #include "gltf_scene.hpp"
 // Standard C++ library
+#include <algorithm>
 #include <array>
+#include <bit>
 #include <concepts>
 #include <cstdio>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <istream>
+#include <limits>
 #include <memory>
+#include <numeric>
 #include <span>
 #include <string>
 #include <vector>
@@ -46,7 +50,10 @@ namespace nanairo {
   \param [in,out] mem_resource No description.
   */
 GltfScene::GltfScene([[maybe_unused]] zisc::pmr::memory_resource* mem_resource) noexcept :
-    meshes_{decltype(meshes_)::allocator_type{mem_resource}}
+    meshes_{decltype(meshes_)::allocator_type{mem_resource}},
+    mesh_code_{decltype(mesh_code_)::allocator_type{mem_resource}},
+    bvh_node_{decltype(bvh_node_)::allocator_type{mem_resource}},
+    bvh_leaf_node_{decltype(bvh_leaf_node_)::allocator_type{mem_resource}}
 {
 }
 
@@ -137,6 +144,188 @@ const tinygltf::Model& GltfScene::model() const noexcept
 /*!
   \details No detailed description
   */
+void GltfScene::buildBvh() noexcept
+{
+  //
+  const std::size_t lr = meshes_.size();
+  const std::size_t lc = std::bit_ceil(lr);
+  const std::size_t lv = lc - lr;
+  const std::size_t clv = lv >> 1;
+  const std::size_t nr = (lr - 1) + std::popcount(clv);
+  const std::size_t max_level = std::bit_width(lr) - 1;
+
+  // Sort
+  bvh_leaf_node_.resize(lr);
+  std::iota(bvh_leaf_node_.begin(), bvh_leaf_node_.end(), 0);
+  const auto cmp = [this](const std::size_t lhs, const std::size_t rhs) noexcept
+  {
+    return mesh_code_[lhs] < mesh_code_[rhs];
+  };
+  std::sort(bvh_leaf_node_.begin(), bvh_leaf_node_.end(), cmp);
+
+  bvh_info_.max_level_ = max_level;
+  bvh_info_.num_of_virtual_leaves_ = lv;
+  bvh_node_.resize(lr + nr);
+  calcNodeAabb(0, 0);
+}
+
+/*!
+  \details No detailed description
+  */
+void GltfScene::calcAabb() noexcept
+{
+  using LimitT = std::numeric_limits<float>;
+  const std::array<float, 6> init = {{LimitT::infinity(), LimitT::infinity(), LimitT::infinity(),
+                                    -LimitT::infinity(), -LimitT::infinity(), -LimitT::infinity()}};
+
+  aabb_ = init;
+  for (const Mesh& mesh : meshes_) {
+    aabb_[0] = (std::min)(aabb_[0], mesh.aabb_[0]);
+    aabb_[1] = (std::min)(aabb_[1], mesh.aabb_[1]);
+    aabb_[2] = (std::min)(aabb_[2], mesh.aabb_[2]);
+    aabb_[3] = (std::max)(aabb_[3], mesh.aabb_[3]);
+    aabb_[4] = (std::max)(aabb_[4], mesh.aabb_[4]);
+    aabb_[5] = (std::max)(aabb_[5], mesh.aabb_[5]);
+  }
+}
+
+/*!
+  \details No detailed description
+  */
+void GltfScene::calcMortonCode() noexcept
+{
+  std::array<std::size_t, 4> bits{{0, 0, 0, 0}};
+  std::array<std::array<std::size_t, 32>, 4> shifts;
+  // Initialization
+  std::array<float, 3> scene_size{{aabb_[3] - aabb_[0], aabb_[4] - aabb_[1], aabb_[5] - aabb_[2]}};
+  const std::array<float, 3> scene_box_size = scene_size;
+  std::array<std::uint8_t, 32> axes{};
+  for (std::size_t i = 0; i < 32; ++i) {
+    std::size_t a = 0; 
+    if ((i % 8) == 7) {
+      a = 3;
+    }
+    else {
+      std::size_t largest = (scene_size[0] < scene_size[1]) ? 1 : 0;
+      largest = (scene_size[largest] < scene_size[2]) ? 2 : largest;
+      a = largest;
+      scene_size[a] /= 2.0f;
+    }
+    axes[i] = a;
+    const std::size_t j = bits[a]++;
+    shifts[a][j] = i;
+  }
+  // Compute quantization scales
+  std::array<float, 4> s{{0.0f, 0.0f, 0.0f, 0.0f}};
+  {
+    const float diagonal = std::sqrt(scene_box_size[0] * scene_box_size[0] +
+                                     scene_box_size[1] * scene_box_size[1] +
+                                     scene_box_size[2] * scene_box_size[2]);
+    s[0] = static_cast<float>(1 << bits[0]) / scene_box_size[0];
+    s[1] = static_cast<float>(1 << bits[1]) / scene_box_size[1];
+    s[2] = static_cast<float>(1 << bits[2]) / scene_box_size[2];
+    s[3] = static_cast<float>(1 << bits[3]) / diagonal;
+  }
+
+  const auto expand = [&bits, &shifts](const std::size_t axis, const std::uint32_t x) noexcept
+  {
+    std::uint32_t v = 0,
+                  mask = 1;
+    for (std::size_t i = 0; i < bits[axis]; ++i) {
+      v = v | static_cast<std::uint32_t>((x & mask) << shifts[axis][i]);
+      mask = mask << 1;
+    }
+    return v;
+  };
+
+  //
+  mesh_code_.resize(meshes_.size());
+  for (std::size_t i = 0; i < meshes_.size(); ++i) {
+    const std::array<float, 6>& aabb = meshes_[i].aabb_;
+    const std::array<float, 3> tri_size{{aabb[3] - aabb[0], aabb[4] - aabb[1], aabb[5] - aabb[2]}};
+    const float diagonal = std::sqrt(tri_size[0] * tri_size[0] +
+                                     tri_size[1] * tri_size[1] +
+                                     tri_size[2] * tri_size[2]);
+    std::array<std::uint32_t, 4> v{{0, 0, 0, 0}};
+    v[0] = static_cast<std::uint32_t>(0.5f * s[0] * tri_size[0]);
+    v[1] = static_cast<std::uint32_t>(0.5f * s[1] * tri_size[1]);
+    v[2] = static_cast<std::uint32_t>(0.5f * s[2] * tri_size[2]);
+    v[3] = static_cast<std::uint32_t>(s[3] * diagonal);
+
+    const std::uint32_t code = static_cast<std::uint32_t>(expand(0, v[0]) << 3) |
+                               static_cast<std::uint32_t>(expand(1, v[1]) << 2) |
+                               static_cast<std::uint32_t>(expand(2, v[2]) << 1) |
+                               static_cast<std::uint32_t>(expand(3, v[3]));
+    mesh_code_[i] = code;
+  }
+}
+
+/*!
+  \details No detailed description
+
+  \param [in] index No description.
+  \param [in] level No description.
+  \return No description
+  */
+std::array<float, 6> GltfScene::calcNodeAabb(const std::size_t index, const std::size_t level) noexcept
+{
+  const std::size_t max_level = bvh_info_.max_level_;
+  const std::size_t lvl = (level == 0)
+      ? 0
+      : bvh_info_.num_of_virtual_leaves_ >> (max_level - (level - 1));
+  const std::size_t nvl = 2 * lvl - std::popcount(lvl);
+
+  if (level == max_level) { // leaf node
+    const std::size_t i = index - ((1 << level) - 1);
+    const std::size_t face_id = bvh_leaf_node_[i];
+    const std::array<float, 6>& aabb = meshes_[face_id].aabb_;
+    bvh_node_[index - nvl].aabb_ = aabb;
+    return aabb;
+  }
+
+  const std::size_t clevel = level + 1;
+  const std::size_t clvl = bvh_info_.num_of_virtual_leaves_ >> (max_level - clevel);
+  const std::size_t cn = (2 << clevel) - 1;
+
+  using LimitT = std::numeric_limits<float>;
+  const std::array<float, 6> init = {{LimitT::infinity(), LimitT::infinity(), LimitT::infinity(),
+                                    -LimitT::infinity(), -LimitT::infinity(), -LimitT::infinity()}};
+  std::array<float, 6> aabb = init;
+  if (const std::size_t cindex = (index << 1) + 1; cindex < (cn - clvl)) {
+    const std::array<float, 6> caabb = calcNodeAabb(cindex, clevel);
+    aabb[0] = (std::min)(aabb[0], caabb[0]);
+    aabb[1] = (std::min)(aabb[1], caabb[1]);
+    aabb[2] = (std::min)(aabb[2], caabb[2]);
+    aabb[3] = (std::max)(aabb[3], caabb[3]);
+    aabb[4] = (std::max)(aabb[4], caabb[4]);
+    aabb[5] = (std::max)(aabb[5], caabb[5]);
+  }
+  if (const std::size_t cindex = (index << 1) + 2; cindex < (cn - clvl)) {
+    const std::array<float, 6> caabb = calcNodeAabb(cindex, clevel);
+    aabb[0] = (std::min)(aabb[0], caabb[0]);
+    aabb[1] = (std::min)(aabb[1], caabb[1]);
+    aabb[2] = (std::min)(aabb[2], caabb[2]);
+    aabb[3] = (std::max)(aabb[3], caabb[3]);
+    aabb[4] = (std::max)(aabb[4], caabb[4]);
+    aabb[5] = (std::max)(aabb[5], caabb[5]);
+  }
+  bvh_node_[index - nvl].aabb_ = aabb;
+  return aabb;
+}
+
+/*!
+  \details No detailed description
+  */
+void GltfScene::compileTlas() noexcept
+{
+  calcAabb();
+  calcMortonCode();
+  buildBvh();
+}
+
+/*!
+  \details No detailed description
+  */
 void GltfScene::compileGeometries() noexcept
 {
   const tinygltf::Scene& s = model().scenes[model().defaultScene];
@@ -160,6 +349,11 @@ void GltfScene::compileScene() noexcept
 
   //
   //printDebugInfo();
+
+  // Compile meshes
+  for (Mesh& mesh : meshes_)
+    mesh.compileBlas();
+  compileTlas();
 }
 
 /*!
@@ -263,11 +457,12 @@ void GltfScene::processCamera(const std::size_t index,
   \param [in] inv_transformation No description.
   */
 void GltfScene::processMesh(const std::size_t index,
-                            const Matrix4x4& transformation,
+                            [[maybe_unused]] const Matrix4x4& transformation,
                             const Matrix4x4& inv_transformation) noexcept
 {
   const tinygltf::Mesh& mesh = model().meshes[index];
   Mesh& dest = meshes_.emplace_back(resource());
+  dest.inv_transformation_ = zisc::bit_cast<std::array<float, 16>>(inv_transformation);
 
   // Reserve the memory for the mesh first
   std::size_t num_of_faces = 0;

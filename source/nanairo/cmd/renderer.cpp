@@ -34,6 +34,7 @@
 #include "ldr_image.hpp"
 // Nanairo kenrel
 #include "zivc/kernel_set/kernel_set-primary_sample_space_kernel.hpp"
+#include "zivc/kernel_set/kernel_set-ray_cast_kernel.hpp"
 #include "zivc/kernel_set/kernel_set-ray_generation_kernel.hpp"
 #include "zivc/kernel_set/kernel_set-test_kernel.hpp"
 #include "zivc/kernel_set/kernel_set-tone_mapping_kernel.hpp"
@@ -54,6 +55,14 @@ namespace kerneldecl {
 {
   const zivc::KernelInitParams p = ZIVC_CREATE_KERNEL_INIT_PARAMS(ray_generation_kernel,
                                                                   generateRayKernel,
+                                                                  1);
+  return zivc::SharedDevice{}->createKernel(p);
+}
+
+[[maybe_unused]] auto declRayCastKernel()
+{
+  const zivc::KernelInitParams p = ZIVC_CREATE_KERNEL_INIT_PARAMS(ray_cast_kernel,
+                                                                  castRayKernel,
                                                                   1);
   return zivc::SharedDevice{}->createKernel(p);
 }
@@ -85,6 +94,7 @@ struct Renderer::Data
   // Kernel declaration
   using PrimarySampleSpaceKernelT = decltype(kerneldecl::declPrimarySampleSpaceKernel());
   using RayGenerationKernelT = decltype(kerneldecl::declRayGenerationKernel());
+  using RayCastKernelT = decltype(kerneldecl::declRayCastKernel());
   using TestKernelT = decltype(kerneldecl::declTestKernel());
   using ToneMappingKernelT = decltype(kerneldecl::declToneMappingKernel());
 
@@ -96,6 +106,11 @@ struct Renderer::Data
   zivc::SharedBuffer<zivc::uint32b> ray_count_buffer_;
   zivc::SharedBuffer<zivc::cl::nanairo::PrimarySampleSet> sample_set_buffer_;
   zivc::SharedBuffer<zivc::cl::nanairo::Ray> ray_buffer_;
+  zivc::SharedBuffer<zivc::cl::nanairo::HitInfo> hit_info_buffer_;
+  zivc::SharedBuffer<zivc::cl::uint4> geometry_buffer_;
+  zivc::SharedBuffer<zivc::cl::uint4> face_buffer_;
+  zivc::SharedBuffer<zivc::cl::uint4> bvh_node_buffer_;
+  zivc::SharedBuffer<zivc::uint32b> bvh_map_buffer_;
   zivc::SharedBuffer<zivc::cl::float4> hdr_out_buffer_;
   zivc::SharedBuffer<zivc::cl::uchar4> ldr_out_buffer_;
   zivc::SharedBuffer<zivc::cl::uchar4> ldr_host_buffer_;
@@ -105,6 +120,7 @@ struct Renderer::Data
   // Kenrels
   PrimarySampleSpaceKernelT primary_sample_space_kernel_;
   RayGenerationKernelT ray_generation_kernel_;
+  RayCastKernelT ray_cast_kernel_;
   TestKernelT test_kernel_;
   ToneMappingKernelT tone_mapping_kernel_;
 
@@ -114,12 +130,18 @@ struct Renderer::Data
     // Kernels
     tone_mapping_kernel_.reset();
     test_kernel_.reset();
+    ray_cast_kernel_.reset();
     ray_generation_kernel_.reset();
     primary_sample_space_kernel_.reset();
     // Buffers
     ldr_host_buffer_.reset();
     ldr_out_buffer_.reset();
     hdr_out_buffer_.reset();
+    bvh_map_buffer_.reset();
+    bvh_node_buffer_.reset();
+    face_buffer_.reset();
+    geometry_buffer_.reset();
+    hit_info_buffer_.reset();
     ray_buffer_.reset();;
     sample_set_buffer_.reset();
     ray_count_buffer_.reset();
@@ -190,7 +212,7 @@ struct Renderer::Data
       primary_sample_space_kernel_ = device_->createKernel(params);
       primary_sample_space_kernel_->setName(params.kernelName());
     }
-    // Primary sample space kernel
+    // Ray generation kernel
     {
       const zivc::KernelInitParams params = ZIVC_CREATE_KERNEL_INIT_PARAMS(
                                                 ray_generation_kernel,
@@ -198,6 +220,15 @@ struct Renderer::Data
                                                 1);
       ray_generation_kernel_ = device_->createKernel(params);
       ray_generation_kernel_->setName(params.kernelName());
+    }
+    // Ray cast kernel
+    {
+      const zivc::KernelInitParams params = ZIVC_CREATE_KERNEL_INIT_PARAMS(
+                                                ray_cast_kernel,
+                                                castRayKernel,
+                                                1);
+      ray_cast_kernel_ = device_->createKernel(params);
+      ray_cast_kernel_->setName(params.kernelName());
     }
     // Test kernel
     {
@@ -243,6 +274,7 @@ struct Renderer::Data
     const std::size_t set_n = n * zivc::cl::nanairo::calcSampleSetSize(context_info_.maxNumOfBounces());
     sample_set_buffer_ = createBuffer<zivc::cl::nanairo::PrimarySampleSet>(set_n, {zivc::BufferUsage::kPreferDevice}, "PrimarySampleSetBuffer");
     ray_buffer_ = createBuffer<zivc::cl::nanairo::Ray>(n, {zivc::BufferUsage::kPreferDevice}, "RayBuffer");
+    hit_info_buffer_ = createBuffer<zivc::cl::nanairo::HitInfo>(n, {zivc::BufferUsage::kPreferDevice}, "HitInfoBuffer");
     hdr_out_buffer_ = createBuffer<zivc::cl::float4>(n, {zivc::BufferUsage::kPreferDevice}, "HdrOutBuffer");
     ldr_out_buffer_ = createBuffer<zivc::cl::uchar4>(n, {zivc::BufferUsage::kPreferDevice}, "LdrOutBuffer");
     ldr_host_buffer_ = createBuffer<zivc::cl::uchar4>(n, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kRandomAccessible}, "LdrHostBuffer");
@@ -348,7 +380,7 @@ void Renderer::update(const GltfScene& scene, const std::size_t frame)
     info.setFov(camera.yfov_);
     // Transformation
     zivc::cl::nanairo::Matrix4x4 m{};
-    std::copy_n(camera.transformation_.begin(), 16, &m.m1_.x);
+    std::copy_n(camera.transformation_.cbegin(), 16, &m.m1_.x);
     info.setTransformation(m);
   }
 }
@@ -372,6 +404,7 @@ void Renderer::initialize(const CliOptions& options, const GltfScene& scene)
   data_->initializeRenderContextInfo(options);
   data_->initializeKernels(options);
   data_->initializeBuffers(options);
+  initializeBvh(scene);
 
   //
   if (options.is_debug_mode_)
@@ -434,6 +467,27 @@ void Renderer::renderFrame(const std::size_t frame,const std::size_t iteration)
                                                                options);
     }
 
+    zivc::ReinterpBuffer face_buffer = data_->face_buffer_->reinterp<zivc::uint32b>();
+    zivc::ReinterpBuffer geom_buffer = data_->geometry_buffer_->reinterp<float>();
+    zivc::ReinterpBuffer bvh_node_buffer = data_->bvh_node_buffer_->reinterp<zivc::uint32b>();
+    // Ray cast kernel
+    {
+      Data::RayCastKernelT& kernel = data_->ray_cast_kernel_;
+      zivc::KernelLaunchOptions options = kernel->createOptions();
+      options.setQueueIndex(0);
+      options.setWorkSize({{n}});
+      options.requestFence(false);
+      options.setLabel("RayCast");
+      [[maybe_unused]] zivc::LaunchResult result = kernel->run(*data_->ray_count_buffer_,
+                                                               *data_->ray_buffer_,
+                                                               face_buffer,
+                                                               geom_buffer,
+                                                               bvh_node_buffer,
+                                                               *data_->bvh_map_buffer_,
+                                                               *data_->hit_info_buffer_,
+                                                               options);
+    }
+
     // Run the test kernel
     {
       Data::TestKernelT& kernel = data_->test_kernel_;
@@ -443,9 +497,226 @@ void Renderer::renderFrame(const std::size_t frame,const std::size_t iteration)
       options.requestFence(true);
       options.setLabel("Test");
       zivc::LaunchResult result = kernel->run(*data_->ray_count_buffer_,
-                                              *data_->ray_buffer_,
+                                              *data_->hit_info_buffer_,
                                               *data_->hdr_out_buffer_,
                                               options);
+      result.fence().wait();
+    }
+  }
+}
+
+/*!
+  \details No detailed description
+
+  \param [in] scene No description.
+  */
+void Renderer::initializeBvh(const GltfScene& scene) noexcept
+{
+  using BvhInfoT = zivc::cl::nanairo::BvhInfo;
+  using BvhNodeT = zivc::cl::nanairo::BvhNode;
+  using Matrix4x4T = zivc::cl::nanairo::Matrix4x4;
+
+  const auto calc_aligned_size = [](const std::size_t s) noexcept
+  {
+    constexpr std::size_t alignment = sizeof(zivc::cl::uint4);
+    return alignment * ((s + sizeof(alignment) - 1) / alignment);
+  };
+  const auto calc_buffer_size = [](const std::size_t s) noexcept
+  {
+    return s / sizeof(zivc::uint32b);
+  };
+
+  std::size_t geom_size_bytes = 0;
+  std::size_t face_size_bytes = 0;
+  std::size_t node_size_bytes = 0;
+
+  // TLAS
+  BvhInfoT tlas_info{};
+  {
+    tlas_info.setMaxDepthLevel(scene.bvh_info_.max_level_);
+    tlas_info.setNumOfVirtualLeaves(scene.bvh_info_.num_of_virtual_leaves_);
+    tlas_info.setInvTransformation(Matrix4x4T::identity());
+    tlas_info.setGeometryOffset(0);
+    // Node size calculation
+    std::size_t s = sizeof(BvhInfoT) + sizeof(BvhNodeT) * scene.bvh_node_.size();
+    s = calc_aligned_size(s);
+    node_size_bytes += s;
+  }
+
+  const std::size_t map_size = scene.bvh_leaf_node_.size();
+  data_->bvh_map_buffer_ = data_->createBuffer<zivc::uint32b>(map_size, {zivc::BufferUsage::kPreferDevice}, "BvhMapBuffer");
+  std::vector<BvhInfoT> blas_info_list{};
+  blas_info_list.resize(map_size);
+
+  // BLAS
+  {
+    zivc::SharedBuffer host_map_buffer = data_->createBuffer<zivc::uint32b>(map_size, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kSequentialWritable}, "HostBvhMapBuffer");
+
+    zivc::MappedMemory map_mem = host_map_buffer->mapMemory();
+    const std::span meshes = scene.meshList();
+    for (std::size_t i = 0; i < scene.bvh_leaf_node_.size(); ++i) {
+      const Mesh& mesh = meshes[scene.bvh_leaf_node_[i]];
+      BvhInfoT& info = blas_info_list[i];
+      //
+      {
+        info.setMaxDepthLevel(mesh.bvh_info_.max_level_);
+        info.setNumOfVirtualLeaves(mesh.bvh_info_.num_of_virtual_leaves_);
+        Matrix4x4T m{};
+        std::copy_n(mesh.inv_transformation_.cbegin(), 16, &m.m1_.x);
+        info.setInvTransformation(m);
+        info.setGeometryOffset(calc_buffer_size(geom_size_bytes));
+        info.setFaceOffset(calc_buffer_size(face_size_bytes));
+      }
+      // Geometry size calculation
+      {
+        std::size_t s = 3 * sizeof(float) * mesh.vertices_.size();
+        s = calc_aligned_size(s);
+        geom_size_bytes += s;
+      }
+      // Face size calculation
+      {
+        std::size_t s = 3 * sizeof(std::uint32_t) * mesh.faces_.size();
+        s = calc_aligned_size(s);
+        face_size_bytes += s;
+      }
+      // Node size calculation
+      {
+        map_mem[i] = calc_buffer_size(node_size_bytes);
+        std::size_t s = sizeof(BvhInfoT) + sizeof(BvhNodeT) * mesh.bvh_node_.size();
+        s = calc_aligned_size(s);
+        node_size_bytes += s;
+      }
+    }
+    map_mem.unmap();
+
+    // Map copy
+    {
+      zivc::BufferLaunchOptions options = host_map_buffer->createOptions();
+      options.requestFence(true);
+      options.setLabel("CopyBvhMapToDevice");
+      zivc::LaunchResult result = zivc::copy(*host_map_buffer,
+                                             data_->bvh_map_buffer_.get(),
+                                             options);
+      result.fence().wait();
+    }
+  }
+
+  // Geometry copy
+  {
+    const std::size_t geom_size = calc_buffer_size(geom_size_bytes);
+    data_->geometry_buffer_ = data_->createBuffer<zivc::cl::uint4>(geom_size, {zivc::BufferUsage::kPreferDevice}, "GeometryBuffer");
+    zivc::SharedBuffer host_geom_buffer = data_->createBuffer<zivc::cl::uint4>(geom_size, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kSequentialWritable}, "HostGeometryBuffer");
+
+    {
+      zivc::ReinterpBuffer host_geom_buffer2 = host_geom_buffer->reinterp<float>();
+      zivc::MappedMemory mem = host_geom_buffer2.mapMemory();
+      const std::span meshes = scene.meshList();
+      for (std::size_t i = 0; i < scene.bvh_leaf_node_.size(); ++i) {
+        const Mesh& mesh = meshes[scene.bvh_leaf_node_[i]];
+        const BvhInfoT& info = blas_info_list[i];
+        const auto* source = reinterpret_cast<const float* const>(mesh.vertices_.data());
+        const std::size_t s = 3 * mesh.vertices_.size();
+        float* dest = &mem[info.geometryOffset()];
+        std::copy_n(source, s, dest);
+      }
+    }
+
+    {
+      zivc::BufferLaunchOptions options = host_geom_buffer->createOptions();
+      options.requestFence(true);
+      options.setLabel("CopyGeometryToDevice");
+      zivc::LaunchResult result = zivc::copy(*host_geom_buffer,
+                                             data_->geometry_buffer_.get(),
+                                             options);
+      result.fence().wait();
+    }
+  }
+
+  // Face copy
+  {
+    const std::size_t face_size = calc_buffer_size(face_size_bytes);
+    data_->face_buffer_ = data_->createBuffer<zivc::cl::uint4>(face_size, {zivc::BufferUsage::kPreferDevice}, "FaceBuffer");
+    zivc::SharedBuffer host_face_buffer = data_->createBuffer<zivc::cl::uint4>(face_size, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kSequentialWritable}, "HostFaceBuffer");
+
+    {
+      zivc::ReinterpBuffer host_face_buffer2 = host_face_buffer->reinterp<zivc::uint32b>();
+      zivc::MappedMemory mem = host_face_buffer2.mapMemory();
+      const std::span meshes = scene.meshList();
+      for (std::size_t i = 0; i < scene.bvh_leaf_node_.size(); ++i) {
+        const Mesh& mesh = meshes[scene.bvh_leaf_node_[i]];
+        const BvhInfoT& info = blas_info_list[i];
+        zivc::uint32b* dest = &mem[info.faceOffset()];
+        for (std::size_t j = 0; j < mesh.bvh_leaf_node_.size(); ++j) {
+          const U3& face = mesh.faces_[mesh.bvh_leaf_node_[j]];
+          std::copy_n(&face.x_, 3, dest + 3 * j);
+        }
+      }
+    }
+
+    {
+      zivc::BufferLaunchOptions options = host_face_buffer->createOptions();
+      options.requestFence(true);
+      options.setLabel("CopyFaceToDevice");
+      zivc::LaunchResult result = zivc::copy(*host_face_buffer,
+                                             data_->face_buffer_.get(),
+                                             options);
+      result.fence().wait();
+    }
+  }
+
+  {
+    const std::size_t node_size = calc_buffer_size(node_size_bytes);
+    data_->bvh_node_buffer_ = data_->createBuffer<zivc::cl::uint4>(node_size, {zivc::BufferUsage::kPreferDevice}, "BvhNodeBuffer");
+    zivc::SharedBuffer host_node_buffer = data_->createBuffer<zivc::cl::uint4>(node_size, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kSequentialWritable}, "HostBvhNodeBuffer");
+
+    {
+      zivc::ReinterpBuffer host_node_buffer2 = host_node_buffer->reinterp<float>();
+      zivc::MappedMemory mem = host_node_buffer2.mapMemory();
+
+      std::size_t offset = 0;
+      // TLAS info
+      {
+        const BvhInfoT& info = tlas_info;
+        const auto* source = reinterpret_cast<const float* const>(&info);
+        const std::size_t s = sizeof(info) / sizeof(float);
+        std::copy_n(source, s, mem.begin());
+        offset += s;
+      }
+      {
+        const auto* source = reinterpret_cast<const float* const>(scene.bvh_node_.data());
+        const std::size_t s = (sizeof(BvhNodeT) * scene.bvh_node_.size()) / sizeof(float);
+        std::copy_n(source, s, &mem[offset]);
+        offset += calc_buffer_size(calc_aligned_size(sizeof(float) * s));
+      }
+
+      // BLAS
+      const std::span meshes = scene.meshList();
+      for (std::size_t i = 0; i < scene.bvh_leaf_node_.size(); ++i) {
+        const Mesh& mesh = meshes[scene.bvh_leaf_node_[i]];
+        // info
+        {
+          const BvhInfoT& info = blas_info_list[i];
+          const auto* source = reinterpret_cast<const float* const>(&info);
+          const std::size_t s = sizeof(info) / sizeof(float);
+          std::copy_n(source, s, &mem[offset]);
+          offset += s;
+        }
+        {
+          const auto* source = reinterpret_cast<const float* const>(mesh.bvh_node_.data());
+          const std::size_t s = (sizeof(BvhNodeT) * mesh.bvh_node_.size()) / sizeof(float);
+          std::copy_n(source, s, &mem[offset]);
+          offset += calc_buffer_size(calc_aligned_size(sizeof(float) * s));
+        }
+      }
+    }
+
+    {
+      zivc::BufferLaunchOptions options = host_node_buffer->createOptions();
+      options.requestFence(true);
+      options.setLabel("CopyBvhNodeToDevice");
+      zivc::LaunchResult result = zivc::copy(*host_node_buffer,
+                                             data_->bvh_node_buffer_.get(),
+                                             options);
       result.fence().wait();
     }
   }

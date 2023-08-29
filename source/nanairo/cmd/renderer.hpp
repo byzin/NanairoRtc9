@@ -68,6 +68,9 @@ class Renderer
   struct Data;
 
 
+  //!
+  void initializeBvh(const GltfScene& scene) noexcept;
+
   //! Print debug info
   void printDebugInfo() const noexcept;
 

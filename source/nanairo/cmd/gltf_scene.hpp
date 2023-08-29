@@ -19,6 +19,7 @@
 #define NANAIRO_CMD_GLTF_SCENE_HPP 1
 
 // Standard C++ library
+#include <array>
 #include <concepts>
 #include <cstdint>
 #include <istream>
@@ -31,6 +32,7 @@
 #include "zisc/function_reference.hpp"
 #include "zisc/memory/std_memory_resource.hpp"
 // Nanairo
+#include "bvh_node.hpp"
 #include "camera.hpp"
 #include "mesh.hpp"
 
@@ -73,11 +75,36 @@ class GltfScene
   //! Return the underlying model
   const tinygltf::Model& model() const noexcept;
 
+
+  Camera camera_;
+  zisc::pmr::vector<Mesh> meshes_;
+  tinygltf::Model model_;
+  //
+  std::array<float, 6> aabb_;
+  zisc::pmr::vector<std::uint32_t> mesh_code_;
+  zisc::pmr::vector<BvhNode> bvh_node_;
+  zisc::pmr::vector<std::size_t> bvh_leaf_node_;
+  BvhInfo bvh_info_;
  private:
   //
   using IndexGetterFuncT = zisc::FunctionReference<std::uint32_t (const unsigned char* const)>;
   using Matrix4x4 = zivc::cl::nanairo::Matrix4x4;
 
+
+  //!
+  void buildBvh() noexcept;
+
+  //!
+  void calcAabb() noexcept;
+
+  //!
+  void calcMortonCode() noexcept;
+
+  //!
+  std::array<float, 6> calcNodeAabb(const std::size_t index, const std::size_t level) noexcept;
+
+  //!
+  void compileTlas() noexcept;
 
   //! Process geometries for rendering
   void compileGeometries() noexcept;
@@ -112,11 +139,6 @@ class GltfScene
                    const Matrix4x4& parent_transformation,
                    const Matrix4x4& parent_inv_transformation,
                    const std::size_t level = 0) noexcept;
-
-
-  Camera camera_;
-  zisc::pmr::vector<Mesh> meshes_;
-  tinygltf::Model model_;
 };
 
 } /* namespace nanairo */

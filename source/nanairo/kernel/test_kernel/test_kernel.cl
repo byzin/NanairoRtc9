@@ -20,37 +20,11 @@
 #include "zivc/cl/types.hpp"
 #include "zivc/cl/utility.hpp"
 // Nanairo
-//#include "cl/primary_sample_set.hpp"
-#include "cl/ray.hpp"
-
-//__kernel void testKernel(
-//    zivc::GlobalPtr<zivc::uint32b> ray_count,
-//    zivc::ConstGlobalPtr<nanairo::PrimarySampleSet> sample_set,
-//    zivc::GlobalPtr<float4> hdr_out)
-//{
-//  using zivc::int32b;
-//  using zivc::uint32b;
-//
-//  const uint32b gindex = zivc::getGlobalIdX();
-//  const uint32b n = zivc::atomic_load(ray_count);
-//  if (n <= gindex)
-//    return;
-//
-//  //
-//  const float2 sample = nanairo::getSample2D(sample_set,
-//                                             gindex,
-//                                             n,
-//                                             //nanairo::SampleSetUsage::kImagePlaneX,
-//                                             //nanairo::SampleSetUsage::kBsdfSampleX,
-//                                             nanairo::SampleSetUsage::kLightSampleX,
-//                                             1);
-//  hdr_out[gindex].x = sample.x;
-//  hdr_out[gindex].y = sample.y;
-//}
+#include "cl/hit_info.hpp"
 
 __kernel void testKernel(
     zivc::GlobalPtr<zivc::uint32b> ray_count,
-    zivc::ConstGlobalPtr<nanairo::Ray> ray,
+    zivc::ConstGlobalPtr<nanairo::HitInfo> hit_info,
     zivc::GlobalPtr<float4> hdr_out)
 {
   using zivc::int32b;
@@ -62,8 +36,10 @@ __kernel void testKernel(
     return;
 
   //
-  const nanairo::Ray r = ray[gindex];
-  const float3 value = (r.direction() + 1.0f) * 0.5f;
+  const nanairo::HitInfo info = hit_info[gindex];
+  const float3 value = info.hasHit()
+      ? (info.geometryNormal() + 1.0f) * 0.5f
+      : zivc::makeFloat3(0.0f, 0.0f, 0.0f);
   hdr_out[gindex].x = value.x;
   hdr_out[gindex].y = value.y;
   hdr_out[gindex].z = value.z;
