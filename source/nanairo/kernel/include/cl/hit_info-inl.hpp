@@ -45,6 +45,18 @@ float3 HitInfo::geometryNormal() const noexcept
   return zivc::makeFloat3(ng_x_, ng_y_, ng_z_);
 }
 
+inline
+zivc::uint32b HitInfo::meshId() const noexcept
+{
+  return mesh_id_;
+}
+
+inline
+zivc::uint32b HitInfo::trisId() const noexcept
+{
+  return tris_id_;
+}
+
 /*!
   \details No detailed description
 
@@ -64,9 +76,12 @@ bool HitInfo::hasHit() const noexcept
 inline
 void HitInfo::initialize() noexcept
 {
-  using LimitT = zivc::NumericLimits<float>;
-  setDistance(LimitT::infinity());
+  using FLimitT = zivc::NumericLimits<float>;
+  using ULimitT = zivc::NumericLimits<zivc::uint32b>;
+  setDistance(FLimitT::infinity());
   setGeometryNormal(zivc::makeFloat3(0.0f, 0.0f, 0.0f));
+  setMeshId(ULimitT::max());
+  setTrisId(ULimitT::max());
 }
 
 /*!
@@ -91,6 +106,18 @@ void HitInfo::setGeometryNormal(const float3 n) noexcept
   ng_x_ = n.x;
   ng_y_ = n.y;
   ng_z_ = n.z;
+}
+
+inline
+void HitInfo::setMeshId(const zivc::uint32b mesh_id) noexcept
+{
+  mesh_id_ = mesh_id;
+}
+
+inline
+void HitInfo::setTrisId(const zivc::uint32b tris_id) noexcept
+{
+  tris_id_ = tris_id;
 }
 
 } /* namespace nanairo */

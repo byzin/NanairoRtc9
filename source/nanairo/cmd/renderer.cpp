@@ -35,7 +35,9 @@
 // Nanairo kenrel
 #include "zivc/kernel_set/kernel_set-primary_sample_space_kernel.hpp"
 #include "zivc/kernel_set/kernel_set-ray_cast_kernel.hpp"
+#include "zivc/kernel_set/kernel_set-feature_ray_cast_kernel.hpp"
 #include "zivc/kernel_set/kernel_set-ray_generation_kernel.hpp"
+#include "zivc/kernel_set/kernel_set-feature_ray_generation_kernel.hpp"
 #include "zivc/kernel_set/kernel_set-test_kernel.hpp"
 #include "zivc/kernel_set/kernel_set-tone_mapping_kernel.hpp"
 
@@ -59,10 +61,26 @@ namespace kerneldecl {
   return zivc::SharedDevice{}->createKernel(p);
 }
 
+[[maybe_unused]] auto declFeatureRayGenerationKernel()
+{
+  const zivc::KernelInitParams p = ZIVC_CREATE_KERNEL_INIT_PARAMS(feature_ray_generation_kernel,
+                                                                  generateFeatureRayKernel,
+                                                                  1);
+  return zivc::SharedDevice{}->createKernel(p);
+}
+
 [[maybe_unused]] auto declRayCastKernel()
 {
   const zivc::KernelInitParams p = ZIVC_CREATE_KERNEL_INIT_PARAMS(ray_cast_kernel,
                                                                   castRayKernel,
+                                                                  1);
+  return zivc::SharedDevice{}->createKernel(p);
+}
+
+[[maybe_unused]] auto declFeatureRayCastKernel()
+{
+  const zivc::KernelInitParams p = ZIVC_CREATE_KERNEL_INIT_PARAMS(feature_ray_cast_kernel,
+                                                                  castFeatureRayKernel,
                                                                   1);
   return zivc::SharedDevice{}->createKernel(p);
 }
@@ -94,7 +112,9 @@ struct Renderer::Data
   // Kernel declaration
   using PrimarySampleSpaceKernelT = decltype(kerneldecl::declPrimarySampleSpaceKernel());
   using RayGenerationKernelT = decltype(kerneldecl::declRayGenerationKernel());
+  using FeatureRayGenerationKernelT = decltype(kerneldecl::declFeatureRayGenerationKernel());
   using RayCastKernelT = decltype(kerneldecl::declRayCastKernel());
+  using FeatureRayCastKernelT = decltype(kerneldecl::declFeatureRayCastKernel());
   using TestKernelT = decltype(kerneldecl::declTestKernel());
   using ToneMappingKernelT = decltype(kerneldecl::declToneMappingKernel());
 
@@ -107,6 +127,9 @@ struct Renderer::Data
   zivc::SharedBuffer<zivc::cl::nanairo::PrimarySampleSet> sample_set_buffer_;
   zivc::SharedBuffer<zivc::cl::nanairo::Ray> ray_buffer_;
   zivc::SharedBuffer<zivc::cl::nanairo::HitInfo> hit_info_buffer_;
+  zivc::SharedBuffer<zivc::cl::nanairo::Ray> feature_ray_buffer_;
+  zivc::SharedBuffer<zivc::cl::nanairo::HitInfo> feature_hit_info_buffer_;
+  zivc::SharedBuffer<zivc::uint8b> feature_line_count_buffer_;
   zivc::SharedBuffer<zivc::cl::uint4> geometry_buffer_;
   zivc::SharedBuffer<zivc::cl::uint4> face_buffer_;
   zivc::SharedBuffer<zivc::cl::uint4> bvh_node_buffer_;
@@ -120,7 +143,9 @@ struct Renderer::Data
   // Kenrels
   PrimarySampleSpaceKernelT primary_sample_space_kernel_;
   RayGenerationKernelT ray_generation_kernel_;
+  FeatureRayGenerationKernelT feature_ray_generation_kernel_;
   RayCastKernelT ray_cast_kernel_;
+  FeatureRayCastKernelT feature_ray_cast_kernel_;
   TestKernelT test_kernel_;
   ToneMappingKernelT tone_mapping_kernel_;
 
@@ -130,7 +155,9 @@ struct Renderer::Data
     // Kernels
     tone_mapping_kernel_.reset();
     test_kernel_.reset();
+    feature_ray_cast_kernel_.reset();
     ray_cast_kernel_.reset();
+    feature_ray_generation_kernel_.reset();
     ray_generation_kernel_.reset();
     primary_sample_space_kernel_.reset();
     // Buffers
@@ -141,6 +168,9 @@ struct Renderer::Data
     bvh_node_buffer_.reset();
     face_buffer_.reset();
     geometry_buffer_.reset();
+    feature_line_count_buffer_.reset();
+    feature_hit_info_buffer_.reset();
+    feature_ray_buffer_.reset();;
     hit_info_buffer_.reset();
     ray_buffer_.reset();;
     sample_set_buffer_.reset();
@@ -221,6 +251,15 @@ struct Renderer::Data
       ray_generation_kernel_ = device_->createKernel(params);
       ray_generation_kernel_->setName(params.kernelName());
     }
+    // Feature ray generation kernel
+    {
+      const zivc::KernelInitParams params = ZIVC_CREATE_KERNEL_INIT_PARAMS(
+                                                feature_ray_generation_kernel,
+                                                generateFeatureRayKernel,
+                                                1);
+      feature_ray_generation_kernel_ = device_->createKernel(params);
+      feature_ray_generation_kernel_->setName(params.kernelName());
+    }
     // Ray cast kernel
     {
       const zivc::KernelInitParams params = ZIVC_CREATE_KERNEL_INIT_PARAMS(
@@ -229,6 +268,15 @@ struct Renderer::Data
                                                 1);
       ray_cast_kernel_ = device_->createKernel(params);
       ray_cast_kernel_->setName(params.kernelName());
+    }
+    // Feature ray cast kernel
+    {
+      const zivc::KernelInitParams params = ZIVC_CREATE_KERNEL_INIT_PARAMS(
+                                                feature_ray_cast_kernel,
+                                                castFeatureRayKernel,
+                                                1);
+      feature_ray_cast_kernel_ = device_->createKernel(params);
+      feature_ray_cast_kernel_->setName(params.kernelName());
     }
     // Test kernel
     {
@@ -275,6 +323,9 @@ struct Renderer::Data
     sample_set_buffer_ = createBuffer<zivc::cl::nanairo::PrimarySampleSet>(set_n, {zivc::BufferUsage::kPreferDevice}, "PrimarySampleSetBuffer");
     ray_buffer_ = createBuffer<zivc::cl::nanairo::Ray>(n, {zivc::BufferUsage::kPreferDevice}, "RayBuffer");
     hit_info_buffer_ = createBuffer<zivc::cl::nanairo::HitInfo>(n, {zivc::BufferUsage::kPreferDevice}, "HitInfoBuffer");
+    feature_ray_buffer_ = createBuffer<zivc::cl::nanairo::Ray>(n, {zivc::BufferUsage::kPreferDevice}, "FeatureRayBuffer");
+//    feature_hit_info_buffer_ = createBuffer<zivc::cl::nanairo::HitInfo>(n, {zivc::BufferUsage::kPreferDevice}, "FeatureHitInfoBuffer");
+    feature_line_count_buffer_ = createBuffer<zivc::uint8b>(n, {zivc::BufferUsage::kPreferDevice}, "FeatureLineCountBuffer");
     hdr_out_buffer_ = createBuffer<zivc::cl::float4>(n, {zivc::BufferUsage::kPreferDevice}, "HdrOutBuffer");
     ldr_out_buffer_ = createBuffer<zivc::cl::uchar4>(n, {zivc::BufferUsage::kPreferDevice}, "LdrOutBuffer");
     ldr_host_buffer_ = createBuffer<zivc::cl::uchar4>(n, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kRandomAccessible}, "LdrHostBuffer");
@@ -307,8 +358,16 @@ void Renderer::clearFrame()
     zivc::BufferLaunchOptions options = data_->hdr_out_buffer_->createOptions();
     options.requestFence(true);
     options.setLabel("ClearHdrBuffer");
-    const zivc::cl::float4 value{0.0f, 0.0f, 0.0f, 0.0f};
+    const zivc::cl::float4 value{1.0f, 1.0f, 1.0f, 0.0f};
     zivc::LaunchResult result = zivc::fill(value, data_->hdr_out_buffer_.get(), options);
+    result.fence().wait();
+  }
+  {
+    zivc::BufferLaunchOptions options = data_->feature_line_count_buffer_->createOptions();
+    options.requestFence(true);
+    options.setLabel("ClearLineCount");
+    const zivc::uint8b value = 0;
+    zivc::LaunchResult result = zivc::fill(value, data_->feature_line_count_buffer_.get(), options);
     result.fence().wait();
   }
 }
@@ -488,6 +547,48 @@ void Renderer::renderFrame(const std::size_t frame,const std::size_t iteration)
                                                                options);
     }
 
+    //for (zivc::uint32b feature_ray_count = 0; feature_ray_count < 4; ++feature_ray_count) {
+    for (zivc::uint32b feature_ray_count = 0; feature_ray_count < 1; ++feature_ray_count) {
+      // Generate feature ray
+      {
+        Data::FeatureRayGenerationKernelT& kernel = data_->feature_ray_generation_kernel_;
+        zivc::KernelLaunchOptions options = kernel->createOptions();
+        options.setQueueIndex(0);
+        options.setWorkSize({{n}});
+        options.requestFence(false);
+        options.setLabel("FeatureRayGeneration");
+        [[maybe_unused]] zivc::LaunchResult result = kernel->run(*data_->ray_count_buffer_,
+                                                                 *data_->sample_set_buffer_,
+                                                                 *data_->ray_buffer_,
+                                                                 *data_->hit_info_buffer_,
+                                                                 *data_->feature_ray_buffer_,
+                                                                 data_->context_info_,
+                                                                 data_->camera_info_,
+                                                                 feature_ray_count,
+                                                                 options);
+      }
+
+      // Feature ray cast kernel
+      {
+        Data::FeatureRayCastKernelT& kernel = data_->feature_ray_cast_kernel_;
+        zivc::KernelLaunchOptions options = kernel->createOptions();
+        options.setQueueIndex(0);
+        options.setWorkSize({{n}});
+        options.requestFence(true);
+        options.setLabel("FeatureRayCast");
+        zivc::LaunchResult result = kernel->run(*data_->ray_count_buffer_,
+                                                *data_->hit_info_buffer_,
+                                                *data_->feature_ray_buffer_,
+                                                face_buffer,
+                                                geom_buffer,
+                                                bvh_node_buffer,
+                                                *data_->bvh_map_buffer_,
+                                                *data_->feature_line_count_buffer_,
+                                                options);
+        result.fence().wait();
+      }
+    }
+
     // Run the test kernel
     {
       Data::TestKernelT& kernel = data_->test_kernel_;
@@ -498,7 +599,9 @@ void Renderer::renderFrame(const std::size_t frame,const std::size_t iteration)
       options.setLabel("Test");
       zivc::LaunchResult result = kernel->run(*data_->ray_count_buffer_,
                                               //*data_->ray_buffer_,
-                                              *data_->hit_info_buffer_,
+                                              //*data_->hit_info_buffer_,
+                                              //*data_->feature_hit_info_buffer_,
+                                              *data_->feature_line_count_buffer_,
                                               *data_->hdr_out_buffer_,
                                               options);
       result.fence().wait();

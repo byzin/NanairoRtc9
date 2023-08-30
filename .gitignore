@@ -45,8 +45,12 @@
 !/source/nanairo/kernel/primary_sample_space_kernel/*.cl
 !/source/nanairo/kernel/ray_generation_kernel/
 !/source/nanairo/kernel/ray_generation_kernel/*.cl
+!/source/nanairo/kernel/feature_ray_generation_kernel/
+!/source/nanairo/kernel/feature_ray_generation_kernel/*.cl
 !/source/nanairo/kernel/ray_cast_kernel/
 !/source/nanairo/kernel/ray_cast_kernel/*.cl
+!/source/nanairo/kernel/feature_ray_cast_kernel/
+!/source/nanairo/kernel/feature_ray_cast_kernel/*.cl
 !/source/nanairo/kernel/test_kernel/
 !/source/nanairo/kernel/test_kernel/*.cl
 !/source/nanairo/kernel/tone_mapping_kernel/

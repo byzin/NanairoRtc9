@@ -33,6 +33,12 @@ struct HitInfo
   //! Return the geometry normal
   float3 geometryNormal() const noexcept;
 
+  //! Return the mesh ID
+  zivc::uint32b meshId() const noexcept;
+
+  //! Return the triangle ID
+  zivc::uint32b trisId() const noexcept;
+
   //! Check if the hit has hit
   bool hasHit() const noexcept;
 
@@ -45,11 +51,19 @@ struct HitInfo
   //! Set the geometry normal
   void setGeometryNormal(const float3 n) noexcept;
 
+  //! Set the mesh ID
+  void setMeshId(const zivc::uint32b mesh_id) noexcept;
+
+  //! Set the triangle ID
+  void setTrisId(const zivc::uint32b tris_id) noexcept;
+
 
   float distance_;
   float ng_x_,
         ng_y_,
         ng_z_;
+  zivc::uint32b mesh_id_,
+                tris_id_;
 };
 
 } /* namespace nanairo */

@@ -225,37 +225,6 @@ float4 testTriangleIntersection(const float3 v0,
   return result;
 }
 
-//inline
-//float4 testTriangleIntersection(const float3 v0,
-//                                const float3 v1,
-//                                const float3 v2,
-//                                const Ray ray,
-//                                const float tmax) noexcept
-//{
-//  using FLimitT = zivc::NumericLimits<float>;
-//
-//  const float3 o = ray.origin();
-//  const float3 d = ray.direction();
-//
-//  const float3 pos0 = v0 - o;
-//  const float3 pos1 = v1 - o;
-//  const float3 pos2 = v2 - o;
-//  const float3 edge0 = v2 - v0;
-//  const float3 edge1 = v0 - v1;
-//  const float3 edge2 = v1 - v2;
-//  const float3 normal = zivc::cross(edge1, edge0);
-//
-//  const float u = zivc::dot(zivc::cross(pos0 + pos2, edge0), d);
-//  const float v = zivc::dot(zivc::cross(pos1 + pos0, edge1), d);
-//  const float w = zivc::dot(zivc::cross(pos2 + pos1, edge2), d);
-//  const float t = zivc::dot(pos0, normal) * 2.0f;
-//
-//  const bool has_hit = (0.0f <= u) && (0.0f <= v) && (0.0f <= w) && (0.0f < t) && (t < tmax);
-//  float4 n = zivc::castBit<float4>(normal);
-//  n.w = has_hit ? t : FLimitT::infinity();
-//  return n;
-//}
-
 /*!
   \details No detailed description
 
@@ -313,6 +282,8 @@ HitInfo castRay(zivc::ConstGlobalPtr<zivc::uint32b> face_buffer,
           normal = bvh_info.transformation() * normal;
           normal = zivc::normalize3(normal);
           hit_info.setGeometryNormal(zivc::castBit<float3>(normal));
+          hit_info.setMeshId(offset);
+          hit_info.setTrisId(leaf_index);
         }
       }
     }

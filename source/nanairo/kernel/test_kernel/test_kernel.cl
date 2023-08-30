@@ -26,7 +26,8 @@
 __kernel void testKernel(
     zivc::GlobalPtr<zivc::uint32b> ray_count,
     //zivc::ConstGlobalPtr<nanairo::Ray> ray,
-    zivc::ConstGlobalPtr<nanairo::HitInfo> hit_info,
+    //zivc::ConstGlobalPtr<nanairo::HitInfo> hit_info,
+    zivc::ConstGlobalPtr<zivc::uint8b> feature_line_count_buffer,
     zivc::GlobalPtr<float4> hdr_out)
 {
   using zivc::int32b;
@@ -42,15 +43,21 @@ __kernel void testKernel(
   //const float3 value = (r.direction() + 1.0f) * 0.5f;
 
   // test2
-  const nanairo::HitInfo info = hit_info[gindex];
-  const float3 value = info.hasHit()
-      ? (info.geometryNormal() + 1.0f) * 0.5f
-      : zivc::makeFloat3(0.0f, 0.0f, 0.0f);
+  //const nanairo::HitInfo info = hit_info[gindex];
+  //const float3 value = info.hasHit()
+  //    ? (info.geometryNormal() + 1.0f) * 0.5f
+  //    : zivc::makeFloat3(0.0f, 0.0f, 0.0f);
   //const float3 value = info.hasHit() ? zivc::makeFloat3(1.0f, 1.0f, 1.0f) : zivc::makeFloat3(0.0f, 0.0f, 0.0f);
+//  hdr_out[gindex].x = value.x;
+//  hdr_out[gindex].y = value.y;
+//  hdr_out[gindex].z = value.z;
 
-  hdr_out[gindex].x = value.x;
-  hdr_out[gindex].y = value.y;
-  hdr_out[gindex].z = value.z;
+  const zivc::uint8b line_count = feature_line_count_buffer[gindex];
+  if (0 < line_count) {
+    hdr_out[gindex].x = 0.0f;
+    hdr_out[gindex].y = 0.0f;
+    hdr_out[gindex].z = 0.0f;
+  }
 }
 
 #endif /* NANAIRO_KERNEL_TEST_KERNEL_CL */
