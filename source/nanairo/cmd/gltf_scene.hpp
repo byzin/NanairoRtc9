@@ -84,6 +84,8 @@ class GltfScene
   zisc::pmr::vector<std::uint32_t> mesh_code_;
   zisc::pmr::vector<BvhNode> bvh_node_;
   zisc::pmr::vector<std::size_t> bvh_leaf_node_;
+  zisc::pmr::vector<F3> camera_transl_anim_;
+  zisc::pmr::vector<F4> camera_rotate_anim_;
   BvhInfo bvh_info_;
  private:
   //
@@ -124,6 +126,9 @@ class GltfScene
 
   //!
   void printDebugInfo() const noexcept;
+
+  //!
+  void processAnimation() noexcept;
 
   //!
   void processCamera(const std::size_t index,

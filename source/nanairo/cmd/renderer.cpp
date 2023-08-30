@@ -438,8 +438,14 @@ void Renderer::update(const GltfScene& scene, const std::size_t frame)
     // FOV
     info.setFov(camera.yfov_);
     // Transformation
-    zivc::cl::nanairo::Matrix4x4 m{};
-    std::copy_n(camera.transformation_.cbegin(), 16, &m.m1_.x);
+    zivc::cl::float3 translation{};
+    std::copy_n(&scene.camera_transl_anim_[frame].x_, 3, &translation.x);
+    zivc::cl::nanairo::Quaternion rotation{};
+    std::copy_n(&scene.camera_rotate_anim_[frame].x_, 4, &rotation.data_.x);
+
+    const zivc::cl::nanairo::Matrix4x4 m =
+        zivc::cl::nanairo::getTranslationMatrix(translation.x, translation.y, translation.z) *
+        zivc::cl::nanairo::getRotationMatrix(rotation);
     info.setTransformation(m);
   }
 }

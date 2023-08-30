@@ -53,7 +53,9 @@ GltfScene::GltfScene([[maybe_unused]] zisc::pmr::memory_resource* mem_resource) 
     meshes_{decltype(meshes_)::allocator_type{mem_resource}},
     mesh_code_{decltype(mesh_code_)::allocator_type{mem_resource}},
     bvh_node_{decltype(bvh_node_)::allocator_type{mem_resource}},
-    bvh_leaf_node_{decltype(bvh_leaf_node_)::allocator_type{mem_resource}}
+    bvh_leaf_node_{decltype(bvh_leaf_node_)::allocator_type{mem_resource}},
+    camera_transl_anim_{decltype(camera_transl_anim_)::allocator_type{mem_resource}},
+    camera_rotate_anim_{decltype(camera_rotate_anim_)::allocator_type{mem_resource}}
 {
 }
 
@@ -334,6 +336,7 @@ void GltfScene::compileGeometries() noexcept
     const Matrix4x4 m = Matrix4x4::identity();
     processNode(index, m, m);
   }
+  processAnimation();
 }
 
 void GltfScene::compileScene() noexcept
@@ -599,6 +602,38 @@ void GltfScene::processMesh(const std::size_t index,
       std::cerr << "[error] Unsupported primitive mode: " << prim.mode << std::endl;
       break;
      }
+    }
+  }
+}
+
+void GltfScene::processAnimation() noexcept
+{
+  for (const tinygltf::Animation& anim : model_.animations) {
+    for (const tinygltf::AnimationSampler& sampler : anim.samplers) {
+      if (sampler.interpolation == "LINEAR") {
+      }
+      if (sampler.interpolation == "STEP") {
+        continue;
+      }
+      if (sampler.interpolation == "CUBICSPLINE") {
+        continue;
+      }
+      {
+        const tinygltf::Accessor& accessor = model_.accessors[sampler.output];
+        const tinygltf::BufferView& buffer_view = model_.bufferViews[accessor.bufferView];
+        const tinygltf::Buffer& buffer = model_.buffers[buffer_view.buffer];
+        const std::size_t count = accessor.count;
+        const unsigned char* const ptr = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
+        const auto* p = reinterpret_cast<const float* const>(ptr);
+        if (accessor.type == TINYGLTF_TYPE_VEC3) {
+          camera_transl_anim_.resize(count);
+          std::copy_n(p, 3 * count, &camera_transl_anim_[0].x_);
+        }
+        if (accessor.type == TINYGLTF_TYPE_VEC4) {
+          camera_rotate_anim_.resize(count);
+          std::copy_n(p, 4 * count, &camera_rotate_anim_[0].x_);
+        }
+      }
     }
   }
 }
