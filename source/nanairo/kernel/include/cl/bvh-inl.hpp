@@ -225,6 +225,37 @@ float4 testTriangleIntersection(const float3 v0,
   return result;
 }
 
+inline
+void pushStack(zivc::GlobalPtr<BvhNodeStack> node_stack_buffer,
+               zivc::LocalPtr<BvhNodeStack> node_stack,
+               zivc::uint32b& index,
+               const uint2 value) noexcept
+{
+  constexpr zivc::uint32b s = BvhNodeStack::size();
+  const zivc::uint32b current = index++;
+  const zivc::uint32b i = current / s;
+  const zivc::uint32b j = current - i * s;
+  if (i == 0) {
+    node_stack[0].stack_[j] = value;
+  }
+  else {
+    node_stack_buffer[i - 1].stack_[j] = value;
+  }
+}
+
+inline
+uint2 popStack(zivc::ConstGlobalPtr<BvhNodeStack> node_stack_buffer,
+               zivc::ConstLocalPtr<BvhNodeStack> node_stack,
+               zivc::uint32b& index) noexcept
+{
+  constexpr zivc::uint32b s = BvhNodeStack::size();
+  const zivc::uint32b current = --index;
+  const zivc::uint32b i = current / s;
+  const zivc::uint32b j = current - i * s;
+  return (i == 0) ? node_stack[0].stack_[j]
+                  : node_stack_buffer[i - 1].stack_[j];
+}
+
 /*!
   \details No detailed description
 
@@ -241,6 +272,7 @@ HitInfo castRay(zivc::ConstGlobalPtr<zivc::uint32b> face_buffer,
                 zivc::ConstGlobalPtr<float> geometry_buffer,
                 zivc::ConstGlobalPtr<zivc::uint32b> bvh_node_buffer,
                 zivc::ConstGlobalPtr<zivc::uint32b> bvh_map_buffer,
+                zivc::GlobalPtr<BvhNodeStack> node_stack_buffer,
                 zivc::LocalPtr<BvhNodeStack> node_stack,
                 const Ray ray) noexcept
 {
@@ -307,7 +339,8 @@ HitInfo castRay(zivc::ConstGlobalPtr<zivc::uint32b> face_buffer,
       }
       if (has_hit_l && has_hit_r) {
         const zivc::uint32b o = isTlas(offset) ? 0 : depth_offset;
-        node_stack[0].stack_[stack_index++] = zivc::makeUInt2(cindexr, o + depth + 1);
+        //node_stack[0].stack_[stack_index++] = zivc::makeUInt2(cindexr, o + depth + 1);
+        pushStack(node_stack_buffer, node_stack, stack_index, zivc::makeUInt2(cindexr, o + depth + 1));
       }
       if (has_hit_l || has_hit_r) {
         node_index = cindexl;
@@ -318,7 +351,8 @@ HitInfo castRay(zivc::ConstGlobalPtr<zivc::uint32b> face_buffer,
 
     if (0 < stack_index) {
       // Pop next node index from the stack
-      const uint2 data = node_stack[0].stack_[--stack_index];
+      //const uint2 data = node_stack[0].stack_[--stack_index];
+      const uint2 data = popStack(node_stack_buffer, node_stack, stack_index);
       const bool is_back_to_tlas = !isTlas(offset) && (data.y <= depth_offset);
       node_index = data.x;
       depth = (isTlas(offset) || is_back_to_tlas) ? data.y : data.y - depth_offset;

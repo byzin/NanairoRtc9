@@ -36,6 +36,7 @@ __kernel void castRayKernel(zivc::GlobalPtr<zivc::uint32b> ray_count,
                             zivc::ConstGlobalPtr<zivc::uint32b> bvh_node_buffer,
                             zivc::ConstGlobalPtr<zivc::uint32b> bvh_map_buffer,
                             zivc::GlobalPtr<nanairo::HitInfo> hit_info_buffer,
+                            zivc::GlobalPtr<nanairo::BvhNodeStack> bvh_node_stack_buffer,
                             zivc::LocalPtr<nanairo::BvhNodeStack> bvh_node_stack)
 {
   using zivc::int32b;
@@ -47,6 +48,7 @@ __kernel void castRayKernel(zivc::GlobalPtr<zivc::uint32b> ray_count,
     return;
 
   const size_t lindex = zivc::getLocalIdX();
+  zivc::GlobalPtr<nanairo::BvhNodeStack> node_stack_buffer = bvh_node_stack_buffer + 2 * gindex;
   zivc::LocalPtr<nanairo::BvhNodeStack> node_stack = bvh_node_stack + lindex;
 
   const nanairo::Ray r = ray[gindex];
@@ -54,6 +56,7 @@ __kernel void castRayKernel(zivc::GlobalPtr<zivc::uint32b> ray_count,
                                                      geometry_buffer,
                                                      bvh_node_buffer,
                                                      bvh_map_buffer,
+                                                     node_stack_buffer,
                                                      node_stack,
                                                      r);
   hit_info_buffer[gindex] = hit_info;

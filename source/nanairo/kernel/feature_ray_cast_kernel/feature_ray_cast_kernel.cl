@@ -39,6 +39,7 @@ __kernel void castFeatureRayKernel(zivc::GlobalPtr<zivc::uint32b> ray_count,
                                    zivc::ConstGlobalPtr<zivc::uint32b> bvh_node_buffer,
                                    zivc::ConstGlobalPtr<zivc::uint32b> bvh_map_buffer,
                                    zivc::GlobalPtr<zivc::uint8b> feature_line_count_buffer,
+                                   zivc::GlobalPtr<nanairo::BvhNodeStack> bvh_node_stack_buffer,
                                    zivc::LocalPtr<nanairo::BvhNodeStack> bvh_node_stack)
 {
   using zivc::int32b;
@@ -59,12 +60,14 @@ __kernel void castFeatureRayKernel(zivc::GlobalPtr<zivc::uint32b> ray_count,
 
   const size_t lindex = zivc::getLocalIdX();
   zivc::LocalPtr<nanairo::BvhNodeStack> node_stack = bvh_node_stack + lindex;
+  zivc::GlobalPtr<nanairo::BvhNodeStack> node_stack_buffer = bvh_node_stack_buffer + 2 * gindex;
 
   const nanairo::Ray r = feature_ray[gindex];
   const nanairo::HitInfo hit_info = nanairo::castRay(face_buffer,
                                                      geometry_buffer,
                                                      bvh_node_buffer,
                                                      bvh_map_buffer,
+                                                     node_stack_buffer,
                                                      node_stack,
                                                      r);
 

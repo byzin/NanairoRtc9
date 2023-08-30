@@ -16,6 +16,7 @@
 // Standard C++ library
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <iomanip>
 #include <iostream>
@@ -130,6 +131,7 @@ struct Renderer::Data
   zivc::SharedBuffer<zivc::cl::nanairo::Ray> feature_ray_buffer_;
   zivc::SharedBuffer<zivc::cl::nanairo::HitInfo> feature_hit_info_buffer_;
   zivc::SharedBuffer<zivc::uint8b> feature_line_count_buffer_;
+  zivc::SharedBuffer<zivc::cl::nanairo::BvhNodeStack> bvh_node_stack_buffer_;
   zivc::SharedBuffer<zivc::cl::uint4> geometry_buffer_;
   zivc::SharedBuffer<zivc::cl::uint4> face_buffer_;
   zivc::SharedBuffer<zivc::cl::uint4> bvh_node_buffer_;
@@ -168,6 +170,7 @@ struct Renderer::Data
     bvh_node_buffer_.reset();
     face_buffer_.reset();
     geometry_buffer_.reset();
+    bvh_node_stack_buffer_.reset();
     feature_line_count_buffer_.reset();
     feature_hit_info_buffer_.reset();
     feature_ray_buffer_.reset();;
@@ -326,6 +329,7 @@ struct Renderer::Data
     feature_ray_buffer_ = createBuffer<zivc::cl::nanairo::Ray>(n, {zivc::BufferUsage::kPreferDevice}, "FeatureRayBuffer");
 //    feature_hit_info_buffer_ = createBuffer<zivc::cl::nanairo::HitInfo>(n, {zivc::BufferUsage::kPreferDevice}, "FeatureHitInfoBuffer");
     feature_line_count_buffer_ = createBuffer<zivc::uint8b>(n, {zivc::BufferUsage::kPreferDevice}, "FeatureLineCountBuffer");
+    bvh_node_stack_buffer_ = createBuffer<zivc::cl::nanairo::BvhNodeStack>(2 * n, {zivc::BufferUsage::kPreferDevice}, "BvhNodeStackBuffer");
     hdr_out_buffer_ = createBuffer<zivc::cl::float4>(n, {zivc::BufferUsage::kPreferDevice}, "HdrOutBuffer");
     ldr_out_buffer_ = createBuffer<zivc::cl::uchar4>(n, {zivc::BufferUsage::kPreferDevice}, "LdrOutBuffer");
     ldr_host_buffer_ = createBuffer<zivc::cl::uchar4>(n, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kRandomAccessible}, "LdrHostBuffer");
@@ -439,9 +443,9 @@ void Renderer::update(const GltfScene& scene, const std::size_t frame)
     info.setFov(camera.yfov_);
     // Transformation
     zivc::cl::float3 translation{};
-    std::copy_n(&scene.camera_transl_anim_[frame].x_, 3, &translation.x);
+    std::copy_n(&scene.camera_transl_anim_[6 * frame].x_, 3, &translation.x);
     zivc::cl::nanairo::Quaternion rotation{};
-    std::copy_n(&scene.camera_rotate_anim_[frame].x_, 4, &rotation.data_.x);
+    std::copy_n(&scene.camera_rotate_anim_[6 * frame].x_, 4, &rotation.data_.x);
 
     const zivc::cl::nanairo::Matrix4x4 m =
         zivc::cl::nanairo::getTranslationMatrix(translation.x, translation.y, translation.z) *
@@ -550,11 +554,11 @@ void Renderer::renderFrame(const std::size_t frame,const std::size_t iteration)
                                                                bvh_node_buffer,
                                                                *data_->bvh_map_buffer_,
                                                                *data_->hit_info_buffer_,
+                                                               *data_->bvh_node_stack_buffer_,
                                                                options);
     }
 
-    //for (zivc::uint32b feature_ray_count = 0; feature_ray_count < 4; ++feature_ray_count) {
-    for (zivc::uint32b feature_ray_count = 0; feature_ray_count < 1; ++feature_ray_count) {
+    for (zivc::uint32b feature_ray_count = 0; feature_ray_count < 2; ++feature_ray_count) {
       // Generate feature ray
       {
         Data::FeatureRayGenerationKernelT& kernel = data_->feature_ray_generation_kernel_;
@@ -590,6 +594,7 @@ void Renderer::renderFrame(const std::size_t frame,const std::size_t iteration)
                                                 bvh_node_buffer,
                                                 *data_->bvh_map_buffer_,
                                                 *data_->feature_line_count_buffer_,
+                                                *data_->bvh_node_stack_buffer_,
                                                 options);
         result.fence().wait();
       }

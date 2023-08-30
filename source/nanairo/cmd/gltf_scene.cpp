@@ -192,76 +192,115 @@ void GltfScene::calcAabb() noexcept
   }
 }
 
-/*!
-  \details No detailed description
-  */
 void GltfScene::calcMortonCode() noexcept
 {
-  std::array<std::size_t, 4> bits{{0, 0, 0, 0}};
-  std::array<std::array<std::size_t, 32>, 4> shifts;
-  // Initialization
-  std::array<float, 3> scene_size{{aabb_[3] - aabb_[0], aabb_[4] - aabb_[1], aabb_[5] - aabb_[2]}};
-  const std::array<float, 3> scene_box_size = scene_size;
-  std::array<std::uint8_t, 32> axes{};
-  for (std::size_t i = 0; i < 32; ++i) {
-    std::size_t a = 0; 
-    if ((i % 8) == 7) {
-      a = 3;
-    }
-    else {
-      std::size_t largest = (scene_size[0] < scene_size[1]) ? 1 : 0;
-      largest = (scene_size[largest] < scene_size[2]) ? 2 : largest;
-      a = largest;
-      scene_size[a] /= 2.0f;
-    }
-    axes[i] = a;
-    const std::size_t j = bits[a]++;
-    shifts[a][j] = i;
-  }
-  // Compute quantization scales
-  std::array<float, 4> s{{0.0f, 0.0f, 0.0f, 0.0f}};
-  {
-    const float diagonal = std::sqrt(scene_box_size[0] * scene_box_size[0] +
-                                     scene_box_size[1] * scene_box_size[1] +
-                                     scene_box_size[2] * scene_box_size[2]);
-    s[0] = static_cast<float>(1 << bits[0]) / scene_box_size[0];
-    s[1] = static_cast<float>(1 << bits[1]) / scene_box_size[1];
-    s[2] = static_cast<float>(1 << bits[2]) / scene_box_size[2];
-    s[3] = static_cast<float>(1 << bits[3]) / diagonal;
-  }
+  const std::array<float, 3> scene_size{{aabb_[3] - aabb_[0],
+                                         aabb_[4] - aabb_[1],
+                                         aabb_[5] - aabb_[2]}};
 
-  const auto expand = [&bits, &shifts](const std::size_t axis, const std::uint32_t x) noexcept
+  const auto expand = [](std::uint32_t v) noexcept
   {
-    std::uint32_t v = 0,
-                  mask = 1;
-    for (std::size_t i = 0; i < bits[axis]; ++i) {
-      v = v | static_cast<std::uint32_t>((x & mask) << shifts[axis][i]);
-      mask = mask << 1;
-    }
+    v = (v * 0x00010001u) & 0xFF0000FFu;
+    v = (v * 0x00000101u) & 0x0F00F00Fu;
+    v = (v * 0x00000011u) & 0xC30C30C3u;
+    v = (v * 0x00000005u) & 0x49249249u;
     return v;
   };
 
-  //
+  const auto calc_code = [&scene_size, expand](const std::array<float, 3>& v) noexcept
+  {
+    constexpr auto s = static_cast<float>(1 << 10);
+    const auto& size = scene_size;
+    const float x = std::clamp((v[0] / size[0]) * s, 0.0f, s - 1.0f);
+    const float y = std::clamp((v[1] / size[1]) * s, 0.0f, s - 1.0f);
+    const float z = std::clamp((v[2] / size[2]) * s, 0.0f, s - 1.0f);
+    const std::uint32_t xx = expand(static_cast<std::uint32_t>(x));
+    const std::uint32_t yy = expand(static_cast<std::uint32_t>(y));
+    const std::uint32_t zz = expand(static_cast<std::uint32_t>(z));
+    return xx * 4 + yy * 2 + zz;
+  };
+
   mesh_code_.resize(meshes_.size());
   for (std::size_t i = 0; i < meshes_.size(); ++i) {
     const std::array<float, 6>& aabb = meshes_[i].world_aabb_;
-    const std::array<float, 3> tri_size{{aabb[3] - aabb[0], aabb[4] - aabb[1], aabb[5] - aabb[2]}};
-    const float diagonal = std::sqrt(tri_size[0] * tri_size[0] +
-                                     tri_size[1] * tri_size[1] +
-                                     tri_size[2] * tri_size[2]);
-    std::array<std::uint32_t, 4> v{{0, 0, 0, 0}};
-    v[0] = static_cast<std::uint32_t>(0.5f * s[0] * tri_size[0]);
-    v[1] = static_cast<std::uint32_t>(0.5f * s[1] * tri_size[1]);
-    v[2] = static_cast<std::uint32_t>(0.5f * s[2] * tri_size[2]);
-    v[3] = static_cast<std::uint32_t>(s[3] * diagonal);
-
-    const std::uint32_t code = static_cast<std::uint32_t>(expand(0, v[0]) << 3) |
-                               static_cast<std::uint32_t>(expand(1, v[1]) << 2) |
-                               static_cast<std::uint32_t>(expand(2, v[2]) << 1) |
-                               static_cast<std::uint32_t>(expand(3, v[3]));
+    const std::array<float, 3> center{{0.5f * (aabb[3] + aabb[0]),
+                                       0.5f * (aabb[4] + aabb[1]),
+                                       0.5f * (aabb[5] + aabb[2])}};
+    const std::uint32_t code = calc_code(center);
     mesh_code_[i] = code;
   }
 }
+
+/*!
+  \details No detailed description
+  */
+//void GltfScene::calcMortonCode() noexcept
+//{
+//  std::array<std::size_t, 4> bits{{0, 0, 0, 0}};
+//  std::array<std::array<std::size_t, 32>, 4> shifts;
+//  // Initialization
+//  std::array<float, 3> scene_size{{aabb_[3] - aabb_[0], aabb_[4] - aabb_[1], aabb_[5] - aabb_[2]}};
+//  const std::array<float, 3> scene_box_size = scene_size;
+//  std::array<std::uint8_t, 32> axes{};
+//  for (std::size_t i = 0; i < 32; ++i) {
+//    std::size_t a = 0; 
+//    if ((i % 8) == 7) {
+//      a = 3;
+//    }
+//    else {
+//      std::size_t largest = (scene_size[0] < scene_size[1]) ? 1 : 0;
+//      largest = (scene_size[largest] < scene_size[2]) ? 2 : largest;
+//      a = largest;
+//      scene_size[a] /= 2.0f;
+//    }
+//    axes[i] = a;
+//    const std::size_t j = bits[a]++;
+//    shifts[a][j] = i;
+//  }
+//  // Compute quantization scales
+//  std::array<float, 4> s{{0.0f, 0.0f, 0.0f, 0.0f}};
+//  {
+//    const float diagonal = std::sqrt(scene_box_size[0] * scene_box_size[0] +
+//                                     scene_box_size[1] * scene_box_size[1] +
+//                                     scene_box_size[2] * scene_box_size[2]);
+//    s[0] = static_cast<float>(1 << bits[0]) / scene_box_size[0];
+//    s[1] = static_cast<float>(1 << bits[1]) / scene_box_size[1];
+//    s[2] = static_cast<float>(1 << bits[2]) / scene_box_size[2];
+//    s[3] = static_cast<float>(1 << bits[3]) / diagonal;
+//  }
+//
+//  const auto expand = [&bits, &shifts](const std::size_t axis, const std::uint32_t x) noexcept
+//  {
+//    std::uint32_t v = 0,
+//                  mask = 1;
+//    for (std::size_t i = 0; i < bits[axis]; ++i) {
+//      v = v | static_cast<std::uint32_t>((x & mask) << shifts[axis][i]);
+//      mask = mask << 1;
+//    }
+//    return v;
+//  };
+//
+//  //
+//  mesh_code_.resize(meshes_.size());
+//  for (std::size_t i = 0; i < meshes_.size(); ++i) {
+//    const std::array<float, 6>& aabb = meshes_[i].world_aabb_;
+//    const std::array<float, 3> tri_size{{aabb[3] - aabb[0], aabb[4] - aabb[1], aabb[5] - aabb[2]}};
+//    const float diagonal = std::sqrt(tri_size[0] * tri_size[0] +
+//                                     tri_size[1] * tri_size[1] +
+//                                     tri_size[2] * tri_size[2]);
+//    std::array<std::uint32_t, 4> v{{0, 0, 0, 0}};
+//    v[0] = static_cast<std::uint32_t>(0.5f * s[0] * tri_size[0]);
+//    v[1] = static_cast<std::uint32_t>(0.5f * s[1] * tri_size[1]);
+//    v[2] = static_cast<std::uint32_t>(0.5f * s[2] * tri_size[2]);
+//    v[3] = static_cast<std::uint32_t>(s[3] * diagonal);
+//
+//    const std::uint32_t code = static_cast<std::uint32_t>(expand(0, v[0]) << 3) |
+//                               static_cast<std::uint32_t>(expand(1, v[1]) << 2) |
+//                               static_cast<std::uint32_t>(expand(2, v[2]) << 1) |
+//                               static_cast<std::uint32_t>(expand(3, v[3]));
+//    mesh_code_[i] = code;
+//  }
+//}
 
 /*!
   \details No detailed description
