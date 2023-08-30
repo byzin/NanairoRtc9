@@ -21,9 +21,11 @@
 #include "zivc/cl/utility.hpp"
 // Nanairo
 #include "cl/hit_info.hpp"
+#include "cl/ray.hpp"
 
 __kernel void testKernel(
     zivc::GlobalPtr<zivc::uint32b> ray_count,
+    //zivc::ConstGlobalPtr<nanairo::Ray> ray,
     zivc::ConstGlobalPtr<nanairo::HitInfo> hit_info,
     zivc::GlobalPtr<float4> hdr_out)
 {
@@ -35,11 +37,17 @@ __kernel void testKernel(
   if (n <= gindex)
     return;
 
-  //
+  // test1
+  //const nanairo::Ray r = ray[gindex];
+  //const float3 value = (r.direction() + 1.0f) * 0.5f;
+
+  // test2
   const nanairo::HitInfo info = hit_info[gindex];
   const float3 value = info.hasHit()
       ? (info.geometryNormal() + 1.0f) * 0.5f
       : zivc::makeFloat3(0.0f, 0.0f, 0.0f);
+  //const float3 value = info.hasHit() ? zivc::makeFloat3(1.0f, 1.0f, 1.0f) : zivc::makeFloat3(0.0f, 0.0f, 0.0f);
+
   hdr_out[gindex].x = value.x;
   hdr_out[gindex].y = value.y;
   hdr_out[gindex].z = value.z;

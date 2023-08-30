@@ -14,6 +14,7 @@
 
 #include "mesh.hpp"
 // Standard C++ library
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <cmath>
@@ -27,6 +28,8 @@
 #include <utility>
 // Zisc
 #include "zisc/memory/std_memory_resource.hpp"
+// Nanairo
+#include "zivc/kernel_set/kernel_set-ray_cast_kernel.hpp"
 
 namespace nanairo {
 
@@ -99,21 +102,9 @@ void Mesh::buildBvh() noexcept
   const std::size_t lc = std::bit_ceil(lr);
   const std::size_t lv = lc - lr;
   const std::size_t clv = lv >> 1;
-//  const std::size_t nv = 2 * clv - std::popcount(clv);
-//  const std::size_t nc = lc - 1;
-//  const std::size_t nr = nc - nv;
-  const std::size_t nr = (lr - 1) + std::popcount(clv);
-
-//  std::cout << "##   num of (c, r, v) tris: (" << lc << "," << lr << "," << lv << ")" << std::endl;
-//  std::cout << "##   num of (c, r, v) nods: (" << nc << "," << nr << "," << nv << ")" << std::endl;
-  const std::size_t max_level = std::bit_width(lr) - 1;
-//  std::cout << "##   maxl=" << max_level; 
-//  for (std::size_t i = 0; i < max_level; ++i) {
-//    const std::size_t lvl = lv >> (max_level - i);
-//    const std::size_t nvl = 2 * lvl - std::popcount(lvl);
-//    std::cout << ", l(" << i << ")=" << nvl;
-//  }
-//  std::cout << std::endl;
+  const std::size_t clr = (lc >> 1) - clv;
+  const std::size_t nr = (2 * clr - 1) + std::popcount(clv);
+  const std::size_t max_level = std::bit_width(lc) - 1;
 
   // Sort
   bvh_leaf_node_.resize(lr);
@@ -139,15 +130,46 @@ void Mesh::calcAabb() noexcept
   const std::array<float, 6> init = {{LimitT::infinity(), LimitT::infinity(), LimitT::infinity(),
                                     -LimitT::infinity(), -LimitT::infinity(), -LimitT::infinity()}};
 
-  aabb_ = init;
+  const auto extend = [](const std::array<float, 6>& aabb) noexcept
+  {
+    constexpr float eps = std::numeric_limits<float>::epsilon();
+    const std::array<float, 3> size{{aabb[3] - aabb[0],
+                                     aabb[4] - aabb[1],
+                                     aabb[5] - aabb[2]}};
+    std::array<float, 6> new_aabb = aabb;
+    new_aabb[0] = (size[0] < eps) ? new_aabb[0] - eps : new_aabb[0];
+    new_aabb[1] = (size[1] < eps) ? new_aabb[1] - eps : new_aabb[1];
+    new_aabb[2] = (size[2] < eps) ? new_aabb[2] - eps : new_aabb[2];
+    new_aabb[3] = (size[0] < eps) ? new_aabb[3] + eps : new_aabb[3];
+    new_aabb[4] = (size[1] < eps) ? new_aabb[4] + eps : new_aabb[4];
+    new_aabb[5] = (size[2] < eps) ? new_aabb[5] + eps : new_aabb[5];
+    return new_aabb;
+  };
+
+  zivc::cl::nanairo::Matrix4x4 m{};
+  std::copy_n(transformation_.cbegin(), 16, &m.m1_.x);
+  local_aabb_ = init;
+  world_aabb_ = init;
   for (const F3& vertex : vertices_) {
-    aabb_[0] = (std::min)(aabb_[0], vertex.x_);
-    aabb_[1] = (std::min)(aabb_[1], vertex.y_);
-    aabb_[2] = (std::min)(aabb_[2], vertex.z_);
-    aabb_[3] = (std::max)(aabb_[3], vertex.x_);
-    aabb_[4] = (std::max)(aabb_[4], vertex.y_);
-    aabb_[5] = (std::max)(aabb_[5], vertex.z_);
+    // Local AABB calculation
+    zivc::cl::float4 v{vertex.x_, vertex.y_, vertex.z_, 1.0f};
+    local_aabb_[0] = (std::min)(local_aabb_[0], v.x);
+    local_aabb_[1] = (std::min)(local_aabb_[1], v.y);
+    local_aabb_[2] = (std::min)(local_aabb_[2], v.z);
+    local_aabb_[3] = (std::max)(local_aabb_[3], v.x);
+    local_aabb_[4] = (std::max)(local_aabb_[4], v.y);
+    local_aabb_[5] = (std::max)(local_aabb_[5], v.z);
+    // World AABB calculation
+    v = m * v;
+    world_aabb_[0] = (std::min)(world_aabb_[0], v.x);
+    world_aabb_[1] = (std::min)(world_aabb_[1], v.y);
+    world_aabb_[2] = (std::min)(world_aabb_[2], v.z);
+    world_aabb_[3] = (std::max)(world_aabb_[3], v.x);
+    world_aabb_[4] = (std::max)(world_aabb_[4], v.y);
+    world_aabb_[5] = (std::max)(world_aabb_[5], v.z);
   }
+  local_aabb_ = extend(local_aabb_);
+  world_aabb_ = extend(world_aabb_);
 
   face_aabb_.clear();
   face_aabb_.reserve(faces_.size());
@@ -163,6 +185,7 @@ void Mesh::calcAabb() noexcept
       aabb[4] = (std::max)(aabb[4], vertex.y_);
       aabb[5] = (std::max)(aabb[5], vertex.z_);
     }
+    aabb = extend(aabb);
     face_aabb_.emplace_back(aabb);
   }
 }
@@ -172,7 +195,9 @@ void Mesh::calcMortonCode() noexcept
   std::array<std::size_t, 4> bits{{0, 0, 0, 0}};
   std::array<std::array<std::size_t, 32>, 4> shifts;
   // Initialization
-  std::array<float, 3> scene_size{{aabb_[3] - aabb_[0], aabb_[4] - aabb_[1], aabb_[5] - aabb_[2]}};
+  std::array<float, 3> scene_size{{local_aabb_[3] - local_aabb_[0],
+                                   local_aabb_[4] - local_aabb_[1],
+                                   local_aabb_[5] - local_aabb_[2]}};
   const std::array<float, 3> scene_box_size = scene_size;
   std::array<std::uint8_t, 32> axes{};
   for (std::size_t i = 0; i < 32; ++i) {

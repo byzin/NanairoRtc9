@@ -497,6 +497,7 @@ void Renderer::renderFrame(const std::size_t frame,const std::size_t iteration)
       options.requestFence(true);
       options.setLabel("Test");
       zivc::LaunchResult result = kernel->run(*data_->ray_count_buffer_,
+                                              //*data_->ray_buffer_,
                                               *data_->hit_info_buffer_,
                                               *data_->hdr_out_buffer_,
                                               options);
@@ -519,7 +520,7 @@ void Renderer::initializeBvh(const GltfScene& scene) noexcept
   const auto calc_aligned_size = [](const std::size_t s) noexcept
   {
     constexpr std::size_t alignment = sizeof(zivc::cl::uint4);
-    return alignment * ((s + sizeof(alignment) - 1) / alignment);
+    return alignment * ((s + alignment - 1) / alignment);
   };
   const auto calc_buffer_size = [](const std::size_t s) noexcept
   {
@@ -535,6 +536,7 @@ void Renderer::initializeBvh(const GltfScene& scene) noexcept
   {
     tlas_info.setMaxDepthLevel(scene.bvh_info_.max_level_);
     tlas_info.setNumOfVirtualLeaves(scene.bvh_info_.num_of_virtual_leaves_);
+    tlas_info.setTransformation(Matrix4x4T::identity());
     tlas_info.setInvTransformation(Matrix4x4T::identity());
     tlas_info.setGeometryOffset(0);
     // Node size calculation
@@ -562,6 +564,8 @@ void Renderer::initializeBvh(const GltfScene& scene) noexcept
         info.setMaxDepthLevel(mesh.bvh_info_.max_level_);
         info.setNumOfVirtualLeaves(mesh.bvh_info_.num_of_virtual_leaves_);
         Matrix4x4T m{};
+        std::copy_n(mesh.transformation_.cbegin(), 16, &m.m1_.x);
+        info.setTransformation(m);
         std::copy_n(mesh.inv_transformation_.cbegin(), 16, &m.m1_.x);
         info.setInvTransformation(m);
         info.setGeometryOffset(calc_buffer_size(geom_size_bytes));

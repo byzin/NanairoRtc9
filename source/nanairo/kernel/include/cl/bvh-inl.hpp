@@ -131,8 +131,8 @@ float2 testAabbIntersection(const BvhNode& node,
 
   const float3 d_near = (p_min - o) * inv_d;
   const float3 d_far = (p_max - o) * inv_d;
-  const float3 t_near = (zivc::min)(d_far, d_near);
-  const float3 t_far = (zivc::max)(d_far, d_near);
+  const float3 t_near = (zivc::min)(d_near, d_far);
+  const float3 t_far = (zivc::max)(d_near, d_far);
 
   constexpr float k = 1.00000024f;
   const float near = (zivc::max)(t_near.x, (zivc::max)(t_near.y, (zivc::max)(t_near.z, 0.0f)));
@@ -203,24 +203,58 @@ float4 testTriangleIntersection(const float3 v0,
   const float3 o = ray.origin();
   const float3 d = ray.direction();
 
-  const float3 pos0 = v0 - o;
-  const float3 pos1 = v1 - o;
-  const float3 pos2 = v2 - o;
-  const float3 edge0 = v2 - v0;
-  const float3 edge1 = v0 - v1;
-  const float3 edge2 = v1 - v2;
-  const float3 normal = zivc::cross(edge1, edge0);
+  const float3 e1 = v1 - v0;
+  const float3 e2 = v2 - v0;
 
-  const float u = zivc::dot(zivc::cross(pos0 + pos2, edge0), d);
-  const float v = zivc::dot(zivc::cross(pos1 + pos0, edge1), d);
-  const float w = zivc::dot(zivc::cross(pos2 + pos1, edge2), d);
-  const float t = zivc::dot(pos0, normal) * 2.0f;
+  const float3 r = o - v0;
+  const float3 p1 = zivc::cross(r, e1);
+  const float3 p2 = zivc::cross(d, e2);
 
-  const bool has_hit = (0.0f <= u) && (0.0f <= v) && (0.0f <= w) && (0.0f < t) && (t < tmax);
-  float4 n = zivc::castBit<float4>(normal);
-  n.w = has_hit ? t : FLimitT::infinity();
-  return n;
+  const float k = zivc::dot(p2, e1);
+  const float t = zivc::dot(p1, e2) / k;
+  const float u = zivc::dot(p2, r) / k;
+  const float v = zivc::dot(p1, d) / k;
+
+  float4 result = zivc::makeFloat4(0.0f, 0.0f, 0.0f, FLimitT::infinity());
+  const bool has_hit = (0.0f <= u) && (0.0f <= v) && (u + v <= 1.0f) && (0.0f < t) && (t < tmax);
+  if (has_hit) {
+    const float3 normal = zivc::cross(e1, e2);
+    result = zivc::castBit<float4>(zivc::normalize(normal));
+    result.w = t;
+  }
+  return result;
 }
+
+//inline
+//float4 testTriangleIntersection(const float3 v0,
+//                                const float3 v1,
+//                                const float3 v2,
+//                                const Ray ray,
+//                                const float tmax) noexcept
+//{
+//  using FLimitT = zivc::NumericLimits<float>;
+//
+//  const float3 o = ray.origin();
+//  const float3 d = ray.direction();
+//
+//  const float3 pos0 = v0 - o;
+//  const float3 pos1 = v1 - o;
+//  const float3 pos2 = v2 - o;
+//  const float3 edge0 = v2 - v0;
+//  const float3 edge1 = v0 - v1;
+//  const float3 edge2 = v1 - v2;
+//  const float3 normal = zivc::cross(edge1, edge0);
+//
+//  const float u = zivc::dot(zivc::cross(pos0 + pos2, edge0), d);
+//  const float v = zivc::dot(zivc::cross(pos1 + pos0, edge1), d);
+//  const float w = zivc::dot(zivc::cross(pos2 + pos1, edge2), d);
+//  const float t = zivc::dot(pos0, normal) * 2.0f;
+//
+//  const bool has_hit = (0.0f <= u) && (0.0f <= v) && (0.0f <= w) && (0.0f < t) && (t < tmax);
+//  float4 n = zivc::castBit<float4>(normal);
+//  n.w = has_hit ? t : FLimitT::infinity();
+//  return n;
+//}
 
 /*!
   \details No detailed description
@@ -274,15 +308,19 @@ HitInfo castRay(zivc::ConstGlobalPtr<zivc::uint32b> face_buffer,
         const bool has_hit = result.w != FLimitT::infinity();
         if (has_hit) {
           hit_info.setDistance(result.w);
-          hit_info.setGeometryNormal(zivc::castBit<float3>(result));
+          float4 normal = result;
+          normal.w = 0.0f;
+          normal = bvh_info.transformation() * normal;
+          normal = zivc::normalize3(normal);
+          hit_info.setGeometryNormal(zivc::castBit<float3>(normal));
         }
       }
     }
     else { // Internal node case
       zivc::uint32b cindexl = (node_index << 1) + 1;
       zivc::uint32b cindexr = (node_index << 1) + 2;
-      float2 tl = zivc::makeFloat2(FLimitT::infinity(), FLimitT::infinity());
-      float2 tr = zivc::makeFloat2(FLimitT::infinity(), FLimitT::infinity());
+      float2 tl = zivc::makeFloat2(FLimitT::infinity(), -FLimitT::infinity());
+      float2 tr = zivc::makeFloat2(FLimitT::infinity(), -FLimitT::infinity());
       if (isValidNode(bvh_info, cindexl, depth + 1)) {
         const BvhNode node = getNode(bvh_node_buffer, bvh_info, cindexl, depth + 1, offset);
         tl = testAabbIntersection(node, r, hit_info.distance());
@@ -293,9 +331,8 @@ HitInfo castRay(zivc::ConstGlobalPtr<zivc::uint32b> face_buffer,
       }
       const bool has_hit_l = tl.x <= tl.y;
       const bool has_hit_r = tr.x <= tr.y;
-      if (has_hit_r && (tr.x < tl.x)) {
+      if ((!has_hit_l && has_hit_r) || (has_hit_l && has_hit_r && (tr.x < tl.x))) {
         swap(cindexl, cindexr);
-        swap(tl, tr);
       }
       if (has_hit_l && has_hit_r) {
         node_stack[0].stack_[stack_index++] = zivc::makeUInt2(cindexr, depth_offset + depth + 1);
@@ -310,11 +347,12 @@ HitInfo castRay(zivc::ConstGlobalPtr<zivc::uint32b> face_buffer,
     if (0 < stack_index) {
       // Pop next node index from the stack
       const uint2 data = node_stack[0].stack_[--stack_index];
-      const bool is_back_to_tlas = depth_offset < data.y;
+      const bool is_back_to_tlas = !isTlas(offset) && (data.y <= depth_offset);
       node_index = data.x;
-      depth = is_back_to_tlas ? data.y - depth_offset : data.y;
+      depth = is_back_to_tlas ? data.y : data.y - depth_offset;
       if (is_back_to_tlas) {
         offset = 0;
+        bvh_info = getInfo(bvh_node_buffer, offset);
         r = ray;
       }
     }

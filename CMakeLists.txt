@@ -64,15 +64,36 @@ if(PROJECT_IS_TOP_LEVEL)
   cmake_path(SET dest_scene_dir NORMALIZE "${PROJECT_BINARY_DIR}/resource/scene")
   file(MAKE_DIRECTORY ${dest_scene_dir})
 
-  cmake_path(SET source_scene_path NORMALIZE "${source_scene_dir}/scene.glb.zip")
-  cmake_path(SET dest_scene_path NORMALIZE "${dest_scene_dir}/scene.glb")
-  add_custom_command(OUTPUT "${dest_scene_path}"
-    COMMAND ${CMAKE_COMMAND} -E tar xfz ${source_scene_path}
+  cmake_path(SET source_scene_path1 NORMALIZE "${source_scene_dir}/scene.glb.zip")
+  cmake_path(SET dest_scene_path1 NORMALIZE "${dest_scene_dir}/scene.glb")
+  cmake_path(SET source_scene_path2 NORMALIZE "${source_scene_dir}/TestHouse.glb.zip")
+  cmake_path(SET dest_scene_path2 NORMALIZE "${dest_scene_dir}/TestHouse.glb")
+  cmake_path(SET source_scene_path3 NORMALIZE "${source_scene_dir}/TestPlane.glb.zip")
+  cmake_path(SET dest_scene_path3 NORMALIZE "${dest_scene_dir}/TestPlane.glb")
+  cmake_path(SET source_scene_path4 NORMALIZE "${source_scene_dir}/TestPlane2.glb.zip")
+  cmake_path(SET dest_scene_path4 NORMALIZE "${dest_scene_dir}/TestPlane2.glb")
+  add_custom_command(OUTPUT "${dest_scene_path1}"
+    COMMAND ${CMAKE_COMMAND} -E tar xfz ${source_scene_path1}
     WORKING_DIRECTORY ${dest_scene_dir}
-    DEPENDS ${source_scene_path}
-    COMMENT "Unzip scene file '${source_scene_path}'")
+    DEPENDS ${source_scene_path1}
+    COMMENT "Unzip scene file '${source_scene_path1}'")
+  add_custom_command(OUTPUT "${dest_scene_path2}"
+    COMMAND ${CMAKE_COMMAND} -E tar xfz ${source_scene_path2}
+    WORKING_DIRECTORY ${dest_scene_dir}
+    DEPENDS ${source_scene_path2}
+    COMMENT "Unzip scene file '${source_scene_path2}'")
+  add_custom_command(OUTPUT "${dest_scene_path3}"
+    COMMAND ${CMAKE_COMMAND} -E tar xfz ${source_scene_path3}
+    WORKING_DIRECTORY ${dest_scene_dir}
+    DEPENDS ${source_scene_path3}
+    COMMENT "Unzip scene file '${source_scene_path3}'")
+  add_custom_command(OUTPUT "${dest_scene_path4}"
+    COMMAND ${CMAKE_COMMAND} -E tar xfz ${source_scene_path4}
+    WORKING_DIRECTORY ${dest_scene_dir}
+    DEPENDS ${source_scene_path4}
+    COMMENT "Unzip scene file '${source_scene_path4}'")
   add_custom_target(Resources ALL
-    DEPENDS ${dest_scene_path}
+    DEPENDS ${dest_scene_path1} ${dest_scene_path2} ${dest_scene_path3} ${dest_scene_path4}
     COMMENT "Preparing resource files")
 
   # Test

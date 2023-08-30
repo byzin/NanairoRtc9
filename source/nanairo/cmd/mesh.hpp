@@ -55,9 +55,11 @@ class Mesh
   zisc::pmr::vector<F3> vertices_;
   zisc::pmr::vector<F3> normals_;
   zisc::pmr::vector<F2> texcoords_;
+  std::array<float, 16> transformation_;
   std::array<float, 16> inv_transformation_;
   // BVH
-  std::array<float, 6> aabb_;
+  std::array<float, 6> local_aabb_;
+  std::array<float, 6> world_aabb_;
   zisc::pmr::vector<std::array<float, 6>> face_aabb_;
   zisc::pmr::vector<std::uint32_t> face_code_;
   zisc::pmr::vector<BvhNode> bvh_node_;

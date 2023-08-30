@@ -151,8 +151,9 @@ void GltfScene::buildBvh() noexcept
   const std::size_t lc = std::bit_ceil(lr);
   const std::size_t lv = lc - lr;
   const std::size_t clv = lv >> 1;
-  const std::size_t nr = (lr - 1) + std::popcount(clv);
-  const std::size_t max_level = std::bit_width(lr) - 1;
+  const std::size_t clr = (lc >> 1) - clv;
+  const std::size_t nr = (2 * clr - 1) + std::popcount(clv);
+  const std::size_t max_level = std::bit_width(lc) - 1;
 
   // Sort
   bvh_leaf_node_.resize(lr);
@@ -180,12 +181,12 @@ void GltfScene::calcAabb() noexcept
 
   aabb_ = init;
   for (const Mesh& mesh : meshes_) {
-    aabb_[0] = (std::min)(aabb_[0], mesh.aabb_[0]);
-    aabb_[1] = (std::min)(aabb_[1], mesh.aabb_[1]);
-    aabb_[2] = (std::min)(aabb_[2], mesh.aabb_[2]);
-    aabb_[3] = (std::max)(aabb_[3], mesh.aabb_[3]);
-    aabb_[4] = (std::max)(aabb_[4], mesh.aabb_[4]);
-    aabb_[5] = (std::max)(aabb_[5], mesh.aabb_[5]);
+    aabb_[0] = (std::min)(aabb_[0], mesh.world_aabb_[0]);
+    aabb_[1] = (std::min)(aabb_[1], mesh.world_aabb_[1]);
+    aabb_[2] = (std::min)(aabb_[2], mesh.world_aabb_[2]);
+    aabb_[3] = (std::max)(aabb_[3], mesh.world_aabb_[3]);
+    aabb_[4] = (std::max)(aabb_[4], mesh.world_aabb_[4]);
+    aabb_[5] = (std::max)(aabb_[5], mesh.world_aabb_[5]);
   }
 }
 
@@ -241,7 +242,7 @@ void GltfScene::calcMortonCode() noexcept
   //
   mesh_code_.resize(meshes_.size());
   for (std::size_t i = 0; i < meshes_.size(); ++i) {
-    const std::array<float, 6>& aabb = meshes_[i].aabb_;
+    const std::array<float, 6>& aabb = meshes_[i].world_aabb_;
     const std::array<float, 3> tri_size{{aabb[3] - aabb[0], aabb[4] - aabb[1], aabb[5] - aabb[2]}};
     const float diagonal = std::sqrt(tri_size[0] * tri_size[0] +
                                      tri_size[1] * tri_size[1] +
@@ -278,7 +279,7 @@ std::array<float, 6> GltfScene::calcNodeAabb(const std::size_t index, const std:
   if (level == max_level) { // leaf node
     const std::size_t i = index - ((1 << level) - 1);
     const std::size_t face_id = bvh_leaf_node_[i];
-    const std::array<float, 6>& aabb = meshes_[face_id].aabb_;
+    const std::array<float, 6>& aabb = meshes_[face_id].world_aabb_;
     bvh_node_[index - nvl].aabb_ = aabb;
     return aabb;
   }
@@ -457,11 +458,12 @@ void GltfScene::processCamera(const std::size_t index,
   \param [in] inv_transformation No description.
   */
 void GltfScene::processMesh(const std::size_t index,
-                            [[maybe_unused]] const Matrix4x4& transformation,
+                            const Matrix4x4& transformation,
                             const Matrix4x4& inv_transformation) noexcept
 {
   const tinygltf::Mesh& mesh = model().meshes[index];
   Mesh& dest = meshes_.emplace_back(resource());
+  dest.transformation_ = zisc::bit_cast<std::array<float, 16>>(transformation);
   dest.inv_transformation_ = zisc::bit_cast<std::array<float, 16>>(inv_transformation);
 
   // Reserve the memory for the mesh first

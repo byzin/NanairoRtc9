@@ -24,10 +24,16 @@
 namespace nanairo {
 
 //! Generate a ray from the camera
-Ray generateRay(const CameraInfo& info,
-                const uint2 resolution,
-                const zivc::uint32b index,
-                const float2 samples) noexcept;
+Ray generateRayPerspective(const CameraInfo& info,
+                           const uint2 resolution,
+                           const zivc::uint32b index,
+                           const float2 samples) noexcept;
+
+//! Generate a ray from the camera
+Ray generateRayLatLong(const CameraInfo& info,
+                       const uint2 resolution,
+                       const zivc::uint32b index,
+                       const float2 samples) noexcept;
 
 } /* namespace nanairo */
 

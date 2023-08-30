@@ -27,7 +27,7 @@ namespace nanairo {
   */
 struct BvhNodeStack
 {
-  static constexpr size_t kSize = 8;
+  static constexpr size_t kSize = 12;
 
 
   //! Return the size of the stack

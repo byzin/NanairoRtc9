@@ -53,7 +53,7 @@ zivc::uint32b BvhInfo::geometryOffset() const noexcept
 inline
 Matrix4x4 BvhInfo::invTransformation() const noexcept
 {
-  return {m1_, m2_, m3_, m4_};
+  return {im1_, im2_, im3_, im4_};
 }
 
 /*!
@@ -76,6 +76,17 @@ inline
 zivc::uint32b BvhInfo::numOfVirtualLeaves() const noexcept
 {
   return data0_.y;
+}
+
+/*!
+  \details No detailed description
+
+  \return No description
+  */
+inline
+Matrix4x4 BvhInfo::transformation() const noexcept
+{
+  return {m1_, m2_, m3_, m4_};
 }
 
 /*!
@@ -108,10 +119,10 @@ void BvhInfo::setGeometryOffset(const zivc::uint32b offset) noexcept
 inline
 void BvhInfo::setInvTransformation(const Matrix4x4 m) noexcept
 {
-  m1_ = m.m1_;
-  m2_ = m.m2_;
-  m3_ = m.m3_;
-  m4_ = m.m4_;
+  im1_ = m.m1_;
+  im2_ = m.m2_;
+  im3_ = m.m3_;
+  im4_ = m.m4_;
 }
 
 /*!
@@ -134,6 +145,20 @@ inline
 void BvhInfo::setNumOfVirtualLeaves(const zivc::uint32b n) noexcept
 {
   data0_.y = n;
+}
+
+/*!
+  \details No detailed description
+
+  \param [in] m No description.
+  */
+inline
+void BvhInfo::setTransformation(const Matrix4x4 m) noexcept
+{
+  m1_ = m.m1_;
+  m2_ = m.m2_;
+  m3_ = m.m3_;
+  m4_ = m.m4_;
 }
 
 } /* namespace nanairo */

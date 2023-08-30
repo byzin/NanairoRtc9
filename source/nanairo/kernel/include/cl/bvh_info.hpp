@@ -44,6 +44,9 @@ struct BvhInfo
   //! Return the number of virtual leaves
   zivc::uint32b numOfVirtualLeaves() const noexcept;
 
+  //! Return the transformation matrix
+  Matrix4x4 transformation() const noexcept;
+
   //!
   void setFaceOffset(const zivc::uint32b offset) noexcept;
 
@@ -59,12 +62,19 @@ struct BvhInfo
   //! Set the number of virtual leaves
   void setNumOfVirtualLeaves(const zivc::uint32b n) noexcept;
 
+  //! Set the transformation matrix
+  void setTransformation(const Matrix4x4 m) noexcept;
+
 
   uint4 data0_;
   float4 m1_,
          m2_,
          m3_,
          m4_;
+  float4 im1_,
+         im2_,
+         im3_,
+         im4_;
 };
 
 } /* namespace nanairo */

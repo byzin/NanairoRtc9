@@ -48,7 +48,8 @@ __kernel void generateRayKernel(
                                               nanairo::SampleSetUsage::kImagePlaneX,
                                               0);
   const uint2 resolution = context_info.imageResolution();
-  const nanairo::Ray r = nanairo::generateRay(camera_info, resolution, gindex, samples);
+  const nanairo::Ray r = nanairo::generateRayPerspective(camera_info, resolution, gindex, samples);
+  //const nanairo::Ray r = nanairo::generateRayLatLong(camera_info, resolution, gindex, samples);
   ray[gindex] = r;
 }
 
