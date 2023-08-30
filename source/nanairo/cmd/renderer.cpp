@@ -526,6 +526,10 @@ void Renderer::initializeBvh(const GltfScene& scene) noexcept
   {
     return s / sizeof(zivc::uint32b);
   };
+  const auto calc_buffer_size4 = [](const std::size_t s) noexcept
+  {
+    return s / sizeof(zivc::cl::uint4);
+  };
 
   std::size_t geom_size_bytes = 0;
   std::size_t face_size_bytes = 0;
@@ -607,7 +611,7 @@ void Renderer::initializeBvh(const GltfScene& scene) noexcept
 
   // Geometry copy
   {
-    const std::size_t geom_size = calc_buffer_size(geom_size_bytes);
+    const std::size_t geom_size = calc_buffer_size4(geom_size_bytes);
     data_->geometry_buffer_ = data_->createBuffer<zivc::cl::uint4>(geom_size, {zivc::BufferUsage::kPreferDevice}, "GeometryBuffer");
     zivc::SharedBuffer host_geom_buffer = data_->createBuffer<zivc::cl::uint4>(geom_size, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kSequentialWritable}, "HostGeometryBuffer");
 
@@ -638,7 +642,7 @@ void Renderer::initializeBvh(const GltfScene& scene) noexcept
 
   // Face copy
   {
-    const std::size_t face_size = calc_buffer_size(face_size_bytes);
+    const std::size_t face_size = calc_buffer_size4(face_size_bytes);
     data_->face_buffer_ = data_->createBuffer<zivc::cl::uint4>(face_size, {zivc::BufferUsage::kPreferDevice}, "FaceBuffer");
     zivc::SharedBuffer host_face_buffer = data_->createBuffer<zivc::cl::uint4>(face_size, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kSequentialWritable}, "HostFaceBuffer");
 
@@ -669,7 +673,7 @@ void Renderer::initializeBvh(const GltfScene& scene) noexcept
   }
 
   {
-    const std::size_t node_size = calc_buffer_size(node_size_bytes);
+    const std::size_t node_size = calc_buffer_size4(node_size_bytes);
     data_->bvh_node_buffer_ = data_->createBuffer<zivc::cl::uint4>(node_size, {zivc::BufferUsage::kPreferDevice}, "BvhNodeBuffer");
     zivc::SharedBuffer host_node_buffer = data_->createBuffer<zivc::cl::uint4>(node_size, {zivc::BufferUsage::kPreferHost, zivc::BufferFlag::kSequentialWritable}, "HostBvhNodeBuffer");
 

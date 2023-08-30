@@ -335,7 +335,8 @@ HitInfo castRay(zivc::ConstGlobalPtr<zivc::uint32b> face_buffer,
         swap(cindexl, cindexr);
       }
       if (has_hit_l && has_hit_r) {
-        node_stack[0].stack_[stack_index++] = zivc::makeUInt2(cindexr, depth_offset + depth + 1);
+        const zivc::uint32b o = isTlas(offset) ? 0 : depth_offset;
+        node_stack[0].stack_[stack_index++] = zivc::makeUInt2(cindexr, o + depth + 1);
       }
       if (has_hit_l || has_hit_r) {
         node_index = cindexl;
@@ -349,7 +350,7 @@ HitInfo castRay(zivc::ConstGlobalPtr<zivc::uint32b> face_buffer,
       const uint2 data = node_stack[0].stack_[--stack_index];
       const bool is_back_to_tlas = !isTlas(offset) && (data.y <= depth_offset);
       node_index = data.x;
-      depth = is_back_to_tlas ? data.y : data.y - depth_offset;
+      depth = (isTlas(offset) || is_back_to_tlas) ? data.y : data.y - depth_offset;
       if (is_back_to_tlas) {
         offset = 0;
         bvh_info = getInfo(bvh_node_buffer, offset);
