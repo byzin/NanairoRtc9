@@ -135,10 +135,10 @@ float2 testAabbIntersection(const BvhNode& node,
   const float3 t_far = (zivc::max)(d_near, d_far);
 
   constexpr float k = 1.00000024f;
-  const float near = (zivc::max)(t_near.x, (zivc::max)(t_near.y, (zivc::max)(t_near.z, 0.0f)));
-  const float far = (zivc::min)(t_far.x, (zivc::min)(t_far.y, (zivc::min)(t_far.z, tmax))) * k;
+  const float n = (zivc::max)(t_near.x, (zivc::max)(t_near.y, (zivc::max)(t_near.z, 0.0f)));
+  const float f = (zivc::min)(t_far.x, (zivc::min)(t_far.y, (zivc::min)(t_far.z, tmax))) * k;
 
-  return zivc::makeFloat2(near, far);
+  return zivc::makeFloat2(n, f);
 }
 
 inline
