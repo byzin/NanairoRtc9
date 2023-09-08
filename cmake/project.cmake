@@ -287,7 +287,7 @@ function(findVulkan)
   endif()
 
   # Load vulkan module
-  find_package(Vulkan 1.3.250 REQUIRED)
+  find_package(Vulkan 1.3.261 REQUIRED)
 
   # Set vulkan target
   if(ZIVC_DYNAMIC_VULKAN_LOADING)
