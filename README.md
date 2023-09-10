@@ -43,7 +43,7 @@ ClspvがPATHにある場合はNanairoはそれを見つけて使います。
 GitやCMake、PythonのPATHを設定して実行してください。
 
 ```
-cmake -G"Visual Studio 17 2022" -Ax64 -Thost=x64 -DCMAKE_BUILD_TYPE=Release -DZIVC_BAKE_KERNELS=ON -DZ_ENABLE_HARDWARE_FEATURES=ON
+cmake -G"Visual Studio 17 2022" -Ax64 -Thost=x64 -DCMAKE_BUILD_TYPE=Release -DZIVC_BAKE_KERNELS=ON -DZ_ENABLE_HARDWARE_FEATURES=ON ..
 ```
 
 ### Ubuntu GCC
