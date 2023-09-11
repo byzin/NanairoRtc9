@@ -226,7 +226,8 @@ struct Renderer::Data
   void initializeRenderContextInfo(const CliOptions& options)
   {
     context_info_.initialize();
-    context_info_.setImageResolution({options.image_width_, options.image_height_});
+    context_info_.setImageResolution({static_cast<zivc::uint16b>(options.image_width_),
+                                      static_cast<zivc::uint16b>(options.image_height_)});
     constexpr zivc::uint16b max_bounce = 4u;
     context_info_.setMaxNumOfBounces(max_bounce);
     constexpr zivc::uint32b seed = 123'456'789u;
