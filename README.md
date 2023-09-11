@@ -12,6 +12,7 @@ The path tracing renderer for RTC9.
 * [CMake](https://cmake.org/ "CMake"): 3.27
 * [Python](https://www.python.org/ "Python"): 3
 * [Vulkan SDK](https://vulkan.lunarg.com/ "Vulkan"): 1.3.261
+    - *Vulkan Memory Allocator header* 込でインストールしてください
 
 ## 任意
 
