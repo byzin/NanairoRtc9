@@ -60,6 +60,14 @@ CC=clang CXX=clang++ cmake -DCMAKE_BUILD_TYPE=Release -DZ_CLANG_USES_LLVM_TOOLS=
 
 ## ビルド実行
 
+### Windows
+
+```
+cmake --build . --config Release --parallel -- -noLogo -v:minimal -clp:Summary
+```
+
+### Ubuntu
+
 ```
 cmake --build . --config Release --parallel
 ```
@@ -69,3 +77,5 @@ cmake --build . --config Release --parallel
 ```
 ctest -C Release -V -R Nanairo-single-vulkan
 ```
+
+画像は test ディレクトリに出力されます。

@@ -78,6 +78,8 @@
 !/install/run.ps1
 !/install/run.py
 !/install/fps.txt
+!/pdf/
+!/pdf/*.pdf
 
 # Build directories
 !/build/
